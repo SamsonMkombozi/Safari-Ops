@@ -1,0 +1,29 @@
+{% extends "dashboard/_base.html" %}
+{% block title %}Quotations — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<h1 class="font-display text-2xl md:text-3xl mb-6">Quotations</h1>
+<div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+  <table class="w-full text-sm min-w-[640px]">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-3">Ref</th>
+        <th class="text-left px-4 py-3">Client</th>
+        <th class="text-left px-4 py-3">Package</th>
+        <th class="text-left px-4 py-3">Total</th>
+        <th class="text-left px-4 py-3">Status</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for q in quotations %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 font-mono text-xs">{{ q.quote_ref }}</td>
+        <td class="px-4 py-3">{{ q.client_name }}</td>
+        <td class="px-4 py-3">{{ q.package_name }}</td>
+        <td class="px-4 py-3">${{ q.grand_total|floatformat:0 }}</td>
+        <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ q.get_status_display }}</span></td>
+      </tr>
+      {% empty %}<tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">No quotations found.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

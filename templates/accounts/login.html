@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Sign In — {{ SITE_NAME }}{% endblock %}
+{% block body %}
+<div class="w-full min-h-screen flex items-center justify-center bg-ink px-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <span class="font-display text-3xl text-white tracking-wide">SZV</span>
+      <p class="text-gray-400 text-sm mt-1">Admin &amp; Agent Portal</p>
+    </div>
+    <form method="post" class="bg-white rounded-lg p-6 space-y-4">
+      {% csrf_token %}
+      {% if error %}<div class="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{{ error }}</div>{% endif %}
+      {% for field in form %}
+      <div>
+        {{ field }}
+        {% if field.errors %}<p class="text-xs text-red-600 mt-1">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="w-full bg-ink text-white rounded py-2.5 text-sm font-medium hover:bg-black transition">Sign In</button>
+    </form>
+  </div>
+</div>
+<style>.input-field{width:100%;border:1px solid #d1d5db;border-radius:6px;padding:.6rem .75rem;font-size:.875rem;outline:none}.input-field:focus{border-color:#c8963e;box-shadow:0 0 0 1px #c8963e}</style>
+{% endblock %}

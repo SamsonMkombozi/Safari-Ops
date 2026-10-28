@@ -1,0 +1,58 @@
+{% extends "agent_portal/_base.html" %}
+{% block title %}My Dashboard — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<h1 class="font-display text-2xl md:text-3xl mb-1">Welcome, {{ request.user.first_name|default:request.user.username }}</h1>
+<p class="text-gray-500 text-sm mb-6">Your pipeline and commissions at a glance.</p>
+
+<div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-8">
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">My leads</div>
+    <div class="text-2xl font-semibold mt-1">{{ stats.leads_total }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Active</div>
+    <div class="text-2xl font-semibold mt-1">{{ stats.leads_active }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Booked</div>
+    <div class="text-2xl font-semibold mt-1 text-green-700">{{ stats.leads_booked }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Commission pending</div>
+    <div class="text-2xl font-semibold mt-1">${{ stats.commission_pending|floatformat:0 }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Approved</div>
+    <div class="text-2xl font-semibold mt-1">${{ stats.commission_approved|floatformat:0 }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Paid (month)</div>
+    <div class="text-2xl font-semibold mt-1 text-green-700">${{ stats.commission_paid_this_month|floatformat:0 }}</div>
+  </div>
+</div>
+
+<div class="grid md:grid-cols-2 gap-6">
+  <div class="bg-white rounded-lg border border-gray-200">
+    <div class="px-4 py-3 border-b border-gray-100 font-medium">Recent Leads</div>
+    <div class="divide-y divide-gray-100">
+      {% for l in recent_leads %}
+      <a href="{% url 'agent_portal:lead_detail' l.pk %}" class="flex items-center justify-between px-4 py-3 text-sm hover:bg-gray-50">
+        <div class="font-medium">{{ l.full_name }}</div>
+        <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ l.get_pipeline_stage_display }}</span>
+      </a>
+      {% empty %}<div class="px-4 py-6 text-sm text-gray-400 text-center">No leads yet.</div>{% endfor %}
+    </div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200">
+    <div class="px-4 py-3 border-b border-gray-100 font-medium">Recent Commissions</div>
+    <div class="divide-y divide-gray-100">
+      {% for c in recent_commissions %}
+      <div class="flex items-center justify-between px-4 py-3 text-sm">
+        <div class="font-mono text-xs">{{ c.booking_ref|default:c.client_name }}</div>
+        <div class="font-medium">${{ c.commission_amount|floatformat:0 }}</div>
+      </div>
+      {% empty %}<div class="px-4 py-6 text-sm text-gray-400 text-center">No commissions yet.</div>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

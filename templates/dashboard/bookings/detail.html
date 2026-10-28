@@ -1,0 +1,33 @@
+{% extends "dashboard/_base.html" %}
+{% block title %}{{ booking.booking_ref }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:booking_list' %}" class="text-sm text-gray-500 hover:text-gray-800">&larr; Bookings</a>
+<h1 class="font-display text-2xl md:text-3xl mt-2 mb-1">{{ booking.booking_ref }}</h1>
+<p class="text-gray-500 text-sm mb-6">{{ booking.full_name }} · {{ booking.travel_date }}</p>
+
+<div class="grid md:grid-cols-3 gap-6">
+  <div class="md:col-span-2 bg-white rounded-lg border border-gray-200 p-5 space-y-4 text-sm">
+    <div class="grid grid-cols-2 gap-4">
+      <div><span class="text-gray-400">Email</span><div>{{ booking.email }}</div></div>
+      <div><span class="text-gray-400">Phone</span><div>{{ booking.phone }}</div></div>
+      <div><span class="text-gray-400">Travelers</span><div>{{ booking.travelers }} ({{ booking.adults }} adults, {{ booking.children }} children)</div></div>
+      <div><span class="text-gray-400">Package</span><div>{{ booking.package_name }}</div></div>
+    </div>
+    {% if booking.special_request %}
+    <div><span class="text-gray-400">Special request</span><p class="whitespace-pre-line">{{ booking.special_request }}</p></div>
+    {% endif %}
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-5 space-y-3 text-sm">
+    <div><span class="text-gray-400">Status</span>
+      <div class="mt-1 inline-block text-xs px-2 py-1 rounded-full
+        {% if booking.payment_status == 'fully_paid' %}bg-green-100 text-green-700
+        {% elif booking.payment_status == 'deposit_paid' %}bg-blue-100 text-blue-700
+        {% elif booking.payment_status == 'cancelled' %}bg-red-100 text-red-700
+        {% else %}bg-amber-100 text-amber-700{% endif %}">{{ booking.get_payment_status_display }}</div>
+    </div>
+    <div><span class="text-gray-400">Total</span><div>{% if booking.total_amount %}${{ booking.total_amount|floatformat:2 }}{% else %}—{% endif %}</div></div>
+    <div><span class="text-gray-400">Paid</span><div>${{ booking.amount_paid|floatformat:2 }}</div></div>
+    <div><span class="text-gray-400">Balance</span><div>{% if booking.balance_due != None %}${{ booking.balance_due|floatformat:2 }}{% else %}—{% endif %}</div></div>
+  </div>
+</div>
+{% endblock %}

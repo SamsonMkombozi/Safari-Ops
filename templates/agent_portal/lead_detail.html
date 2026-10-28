@@ -1,0 +1,19 @@
+{% extends "agent_portal/_base.html" %}
+{% block title %}{{ lead.full_name }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<a href="{% url 'agent_portal:lead_list' %}" class="text-sm text-gray-500 hover:text-gray-800">&larr; My Leads</a>
+<h1 class="font-display text-2xl md:text-3xl mt-2 mb-1">{{ lead.full_name }}</h1>
+<p class="text-gray-500 text-sm mb-6">{{ lead.email }} · {{ lead.phone|default:"no phone on file" }}</p>
+
+<div class="bg-white rounded-lg border border-gray-200 p-5 space-y-4 text-sm">
+  <div class="grid grid-cols-2 gap-4">
+    <div><span class="text-gray-400">Stage</span><div>{{ lead.get_pipeline_stage_display }}</div></div>
+    <div><span class="text-gray-400">Source</span><div>{{ lead.source }}</div></div>
+    <div><span class="text-gray-400">Travel date</span><div>{{ lead.travel_date|default:lead.travel_month|default:"—" }}</div></div>
+    <div><span class="text-gray-400">Party size</span><div>{{ lead.party_size|default:"—" }}</div></div>
+    <div><span class="text-gray-400">Budget</span><div>{{ lead.budget_range|default:"—" }}</div></div>
+    <div><span class="text-gray-400">Booking value</span><div>${{ lead.booking_value|floatformat:0 }}</div></div>
+  </div>
+  {% if lead.notes %}<div><span class="text-gray-400">Notes</span><p class="whitespace-pre-line">{{ lead.notes }}</p></div>{% endif %}
+</div>
+{% endblock %}

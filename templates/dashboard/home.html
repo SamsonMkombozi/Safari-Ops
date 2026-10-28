@@ -1,0 +1,77 @@
+{% extends "dashboard/_base.html" %}
+{% block title %}Dashboard — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<h1 class="font-display text-2xl md:text-3xl mb-1">Welcome back, {{ request.user.first_name|default:request.user.username }}</h1>
+<p class="text-gray-500 text-sm mb-6">Here's what's happening across Safari Zangu Ventures.</p>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Bookings (total)</div>
+    <div class="text-2xl font-semibold mt-1">{{ stats.bookings_total }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">This month</div>
+    <div class="text-2xl font-semibold mt-1">{{ stats.bookings_this_month }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Pending payment</div>
+    <div class="text-2xl font-semibold mt-1 text-amber-600">{{ stats.bookings_pending_payment }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Revenue (month)</div>
+    <div class="text-2xl font-semibold mt-1">${{ stats.revenue_this_month|floatformat:0 }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Open quotations</div>
+    <div class="text-2xl font-semibold mt-1">{{ stats.quotations_open }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Active leads</div>
+    <div class="text-2xl font-semibold mt-1">{{ stats.leads_active }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Commissions due</div>
+    <div class="text-2xl font-semibold mt-1">${{ stats.commissions_pending|floatformat:0 }}</div>
+  </div>
+  <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div class="text-xs uppercase tracking-wide text-gray-400">Active packages</div>
+    <div class="text-2xl font-semibold mt-1">{{ stats.active_packages }}</div>
+  </div>
+</div>
+
+<div class="grid md:grid-cols-2 gap-6">
+  <div class="bg-white rounded-lg border border-gray-200">
+    <div class="px-4 py-3 border-b border-gray-100 font-medium">Recent Bookings</div>
+    <div class="divide-y divide-gray-100">
+      {% for b in recent_bookings %}
+      <a href="{% url 'dashboard:booking_detail' b.pk %}" class="flex items-center justify-between px-4 py-3 text-sm hover:bg-gray-50">
+        <div>
+          <div class="font-medium">{{ b.full_name }}</div>
+          <div class="text-gray-400 text-xs">{{ b.booking_ref }} · {{ b.travel_date }}</div>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full
+          {% if b.payment_status == 'fully_paid' %}bg-green-100 text-green-700
+          {% elif b.payment_status == 'deposit_paid' %}bg-blue-100 text-blue-700
+          {% elif b.payment_status == 'cancelled' %}bg-red-100 text-red-700
+          {% else %}bg-amber-100 text-amber-700{% endif %}">{{ b.get_payment_status_display }}</span>
+      </a>
+      {% empty %}<div class="px-4 py-6 text-sm text-gray-400 text-center">No bookings yet.</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg border border-gray-200">
+    <div class="px-4 py-3 border-b border-gray-100 font-medium">Recent Leads</div>
+    <div class="divide-y divide-gray-100">
+      {% for l in recent_leads %}
+      <div class="flex items-center justify-between px-4 py-3 text-sm">
+        <div>
+          <div class="font-medium">{{ l.full_name }}</div>
+          <div class="text-gray-400 text-xs">{{ l.agent.get_full_name|default:"Unassigned" }}</div>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ l.get_pipeline_stage_display }}</span>
+      </div>
+      {% empty %}<div class="px-4 py-6 text-sm text-gray-400 text-center">No leads yet.</div>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

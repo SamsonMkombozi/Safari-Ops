@@ -1,0 +1,30 @@
+{% extends "dashboard/_base.html" %}
+{% block title %}Leads — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<h1 class="font-display text-2xl md:text-3xl mb-6">Leads</h1>
+<div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+  <table class="w-full text-sm min-w-[640px]">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-3">Name</th>
+        <th class="text-left px-4 py-3">Agent</th>
+        <th class="text-left px-4 py-3">Stage</th>
+        <th class="text-left px-4 py-3">Value</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for l in leads %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3">
+          <div class="font-medium">{{ l.full_name }}</div>
+          <div class="text-gray-400 text-xs">{{ l.email }}</div>
+        </td>
+        <td class="px-4 py-3">{{ l.agent.get_full_name|default:"Unassigned" }}</td>
+        <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ l.get_pipeline_stage_display }}</span></td>
+        <td class="px-4 py-3">${{ l.booking_value|floatformat:0 }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No leads found.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
