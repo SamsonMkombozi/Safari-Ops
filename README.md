@@ -213,6 +213,15 @@ The tests run on in-memory SQLite, so no MySQL is needed. The 36 tests cover:
 
   Secrets live only in `~/safariops/.env.server`, which is generated on the server and never committed.
 
+**Auto-deploy from GitHub (demo server):** push to `main` and the server deploys it within about 2 minutes.
+
+- `~/ops/bin/deploy` checks GitHub using a read-only deploy key and fast-forwards the checkout.
+- It then runs [`deploy/server-update.sh`](deploy/server-update.sh). This rebuilds the image fully only when `requirements.txt`, the Dockerfile or the entrypoint change; otherwise it layers the new code onto `safariops-web:base` in seconds.
+- It health-checks the login page and rolls back automatically if that check fails.
+- Results appear in the TechX admin under Safari-Ops → **Deploys**.
+
+Server-side setup and safety rules are in `~/ops/README.md` on the server.
+
 **Demo server notes (196.250.208.206):**
 
 - **Build locally:** the server's Debian package mirror is very slow. Build the image locally and stream it over:
