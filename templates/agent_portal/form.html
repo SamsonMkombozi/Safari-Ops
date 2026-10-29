@@ -1,0 +1,21 @@
+{% extends "agent_portal/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-card" style="max-width:920px">
+  <div class="admin-card-body">
+    {% if intro %}<p class="muted" style="margin-bottom:1rem;font-size:.8rem">{{ intro }}</p>{% endif %}
+    <form method="post">{% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      {% if preview %}
+      <input type="hidden" name="confirm" value="1">
+      <div class="admin-card" style="margin-top:1rem"><div class="admin-card-header"><h3>Price for this party</h3></div><div class="admin-table-wrap"><table class="admin-table">
+        <tbody>{% for li in preview.built.line_items %}<tr><td>{{ li.description }}</td><td class="muted">{{ li.quantity_str }}</td><td class="num">{{ li.amount|money:2 }}</td></tr>{% endfor %}</tbody>
+        <tfoot><tr><td colspan="2" class="num">VAT</td><td class="num">{{ preview.totals.vat|money:2 }}</td></tr><tr><td colspan="2" class="num"><strong>Total</strong></td><td class="num"><strong>{{ preview.totals.grand_total|money:2 }}</strong></td></tr><tr><td colspan="2" class="num">Deposit due</td><td class="num">{{ preview.totals.deposit|money:2 }}</td></tr></tfoot>
+      </table></div></div>
+      <p class="muted" style="margin-top:.5rem">Changing any field above re-prices — click “Price this booking” again by reloading the page.</p>
+      {% endif %}
+      <div style="display:flex;gap:.5rem;margin-top:1rem"><button class="admin-btn admin-btn--primary">{{ submit_label }}</button><a href="{% url 'agent_portal:lead_list' %}" class="admin-btn admin-btn--muted">Cancel</a></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

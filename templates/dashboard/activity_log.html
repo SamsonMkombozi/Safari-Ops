@@ -1,0 +1,13 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="toolbar"><form method="get"><input type="search" name="q" value="{{ q }}" class="admin-input" placeholder="Search description, user, type…">
+  <select name="action" class="admin-input" onchange="this.form.submit()"><option value="">All actions</option>{% for v, l in actions %}<option value="{{ v }}"{% if v == action_filter %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  <button class="admin-btn admin-btn--outline">Search</button></form></div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>When</th><th>User</th><th>Action</th><th>Object</th><th>Description</th><th>IP</th></tr></thead>
+  <tbody>{% for e in page_obj %}<tr><td class="nowrap">{{ e.created_at|date:"d M Y H:i:s" }}</td><td>{{ e.actor.username|default:"—" }}</td><td>{{ e.get_action_display }}</td><td class="muted">{{ e.object_type }}{% if e.object_id %} #{{ e.object_id }}{% endif %}</td><td>{{ e.description }}</td><td class="muted">{{ e.ip_address|default:"" }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="admin-empty">No activity yet.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

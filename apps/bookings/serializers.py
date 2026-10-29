@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Booking, BookingReminder, Quotation
+from .models import Booking, BookingReminder, Payment, Quotation
 
 
 class QuotationSerializer(serializers.ModelSerializer):
@@ -26,7 +26,8 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = '__all__'
-        read_only_fields = ['booking_ref', 'tracking_password_hash', 'created_by']
+        # amount_paid/payment_status are derived from the payment ledger — write them via record_payment.
+        read_only_fields = ['booking_ref', 'tracking_password_hash', 'created_by', 'amount_paid', 'payment_status']
 
 
 class BookingTrackingSerializer(serializers.ModelSerializer):
@@ -44,3 +45,11 @@ class BookingReminderSerializer(serializers.ModelSerializer):
     class Meta:
         model = BookingReminder
         fields = '__all__'
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = '__all__'
+        read_only_fields = ['recorded_by', 'kind']
+        extra_kwargs = {'received_at': {'required': False}}

@@ -1,0 +1,22 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<p class="muted" style="margin-bottom:1rem;font-size:.8rem">Last 12 months, {{ count }} non-cancelled bookings. Revenue is shown net of VAT; supplier cost is the cost snapshot taken when each booking was priced.</p>
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Net revenue</span><span class="metric-value">{{ revenue|money }}</span></div>
+  <div class="metric-card"><span class="metric-label">Supplier cost</span><span class="metric-value">{{ cost|money }}</span></div>
+  <div class="metric-card metric-card--blue"><span class="metric-label">Gross profit</span><span class="metric-value">{{ gross|money }}</span><span class="metric-sub">{{ margin }}% margin</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">After commissions</span><span class="metric-value">{{ net|money }}</span><span class="metric-sub">{{ commissions|money }} agent commission</span></div>
+</div>
+<div class="admin-card" style="margin-bottom:1.25rem"><div class="admin-card-header"><h3>Realised profit by package</h3></div><div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Package</th><th class="num">Bookings</th><th class="num">Net revenue</th><th class="num">Supplier cost</th><th class="num">Gross profit</th><th class="num">Margin</th></tr></thead>
+  <tbody>{% for r in per_package %}<tr><td>{{ r.name }}</td><td class="num">{{ r.n }}</td><td class="num">{{ r.rev|money }}</td><td class="num">{{ r.cost|money }}</td><td class="num"><strong>{{ r.profit|money }}</strong></td><td class="num">{{ r.margin|default:"—" }}{% if r.margin is not None %}%{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="admin-empty">No bookings in range.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+<div class="admin-card"><div class="admin-card-header"><h3>Catalog margin (1 traveler, current rates)</h3></div><div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Package</th><th class="num">Price</th><th class="num">Net of VAT</th>{% for l in labels %}<th class="num">{{ l }}</th>{% endfor %}<th class="num">Supplier total</th><th class="num">Margin</th></tr></thead>
+  <tbody>{% for b in breakdown %}<tr><td><a class="admin-link" href="{% url 'dashboard:package_detail' b.package.pk %}">{{ b.package.name }}</a></td><td class="num">{{ b.price|money }}</td><td class="num">{{ b.net|money }}</td>
+    {% for c in b.cats %}<td class="num muted">{{ c|money }}</td>{% endfor %}<td class="num">{{ b.supplier|money }}</td>
+    <td class="num"><strong{% if b.margin is not None and b.margin < 15 %} style="color:var(--red)"{% endif %}>{% if b.margin is None %}needs costing{% else %}{{ b.margin }}%{% endif %}</strong></td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

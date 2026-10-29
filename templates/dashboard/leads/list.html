@@ -1,30 +1,55 @@
 {% extends "dashboard/_base.html" %}
-{% block title %}Leads — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<h1 class="font-display text-2xl md:text-3xl mb-6">Leads</h1>
-<div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-  <table class="w-full text-sm min-w-[640px]">
-    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-      <tr>
-        <th class="text-left px-4 py-3">Name</th>
-        <th class="text-left px-4 py-3">Agent</th>
-        <th class="text-left px-4 py-3">Stage</th>
-        <th class="text-left px-4 py-3">Value</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-100">
-      {% for l in leads %}
-      <tr class="hover:bg-gray-50">
-        <td class="px-4 py-3">
-          <div class="font-medium">{{ l.full_name }}</div>
-          <div class="text-gray-400 text-xs">{{ l.email }}</div>
-        </td>
-        <td class="px-4 py-3">{{ l.agent.get_full_name|default:"Unassigned" }}</td>
-        <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ l.get_pipeline_stage_display }}</span></td>
-        <td class="px-4 py-3">${{ l.booking_value|floatformat:0 }}</td>
-      </tr>
-      {% empty %}<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No leads found.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+<div class="admin-filter-pills" style="margin-bottom:1rem">
+  <a href="{% qs_replace stage='' %}" class="admin-filter-pill admin-filter-pill--dark{% if not stage_filter %} active{% endif %}">All ({{ total_count }})</a>
+  {% for v, l in stages %}<a href="{% qs_replace stage=v %}" class="admin-filter-pill{% if stage_filter == v %} active{% endif %}">{{ l }} ({{ counts|get_attr:v|default:0 }})</a>{% endfor %}
 </div>
+<div class="toolbar">
+  <form method="get">
+    <input type="hidden" name="stage" value="{{ stage_filter }}">
+    <input type="search" name="q" value="{{ q }}" class="admin-input" placeholder="Name, email, country…">
+    <select name="agent" class="admin-input" onchange="this.form.submit()" style="max-width:180px"><option value="">All agents</option>{% for a in agents %}<option value="{{ a.pk }}"{% if agent_filter == a.pk|stringformat:"s" %} selected{% endif %}>{{ a.get_full_name|default:a.username }}</option>{% endfor %}</select>
+    <button class="admin-btn admin-btn--outline">{% icon 'search' 13 %} Search</button>
+  </form>
+  <a href="{% url 'dashboard:lead_new' %}" class="admin-btn admin-btn--primary">+ Add Lead</a>
+</div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Date</th><th>Name</th><th>Contact</th><th>Country</th><th>Package</th><th>Travel</th><th class="num">Value</th><th>Agent</th><th>Stage</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for l in page_obj %}
+  <tr>
+    <td class="nowrap" style="font-size:.78rem">{{ l.created_at|date:"d M Y" }}</td>
+    <td><strong style="font-size:.85rem">{{ l.full_name }}</strong><div class="muted">{{ l.source }}</div></td>
+    <td style="font-size:.78rem">{{ l.email }}{% if l.phone %}<div class="muted">{{ l.phone }}</div>{% endif %}</td>
+    <td style="font-size:.82rem">{{ l.country|default:"—" }}</td>
+    <td style="font-size:.78rem">{{ l.package_name|default:"—" }}</td>
+    <td class="nowrap" style="font-size:.82rem">{{ l.travel_date|date:"d/m/Y"|default:"—" }}</td>
+    <td class="num">{{ l.booking_value|money }}{% if l.commission_amount %}<div class="muted">comm {{ l.commission_amount|money }}</div>{% endif %}</td>
+    <td style="font-size:.75rem">{{ l.agent.get_full_name|default:"—" }}</td>
+    <td>
+      {% if request.user.may_change_status %}
+      <form method="post" action="{% url 'dashboard:lead_stage' l.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <select name="pipeline_stage" class="status-select" onchange="this.form.submit()">{% for v, lbl in stages %}<option value="{{ v }}"{% if v == l.pipeline_stage %} selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
+      </form>
+      {% else %}{% status_badge l.pipeline_stage l.get_pipeline_stage_display %}{% endif %}
+    </td>
+    <td>
+      <div class="admin-row-actions">
+        <button type="button" class="admin-icon-btn admin-row-actions-toggle" aria-label="Actions" aria-haspopup="true" aria-expanded="false">{% icon 'dots-vertical' 16 %}</button>
+        <div class="admin-row-actions-menu">
+          <a href="{% url 'dashboard:lead_edit' l.pk %}" class="admin-row-actions-item">{% icon 'edit' 14 %} Edit</a>
+          <a href="{% url 'dashboard:quotation_new' %}?from_lead={{ l.pk }}" class="admin-row-actions-item">{% icon 'quotations' 14 %} Quote</a>
+          {% if l.phone %}<a href="https://wa.me/{{ l.phone|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="admin-row-actions-item">WhatsApp</a>{% endif %}
+          {% if request.user.may_delete %}
+          <form method="post" action="{% url 'dashboard:lead_delete' l.pk %}" data-confirm="Delete lead {{ l.full_name }}?">{% csrf_token %}<button class="admin-row-actions-item admin-row-actions-item--danger" style="width:100%">{% icon 'trash' 14 %} Delete</button></form>
+          {% endif %}
+        </div>
+      </div>
+    </td>
+  </tr>
+  {% empty %}<tr><td colspan="10" class="admin-empty">No leads yet. Click “+ Add Lead” to add your first lead.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% include "partials/pagination.html" %}
 {% endblock %}

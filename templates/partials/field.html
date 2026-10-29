@@ -1,0 +1,10 @@
+<div class="admin-form-group{% if field.widget_type == 'textarea' %} span-all{% endif %}">
+  {% if field.widget_type == 'checkbox' %}
+  <label class="admin-label" style="display:flex;gap:.4rem;align-items:center;text-transform:none">{{ field }} {{ field.label }}</label>
+  {% else %}
+  <label class="admin-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+  {{ field }}
+  {% endif %}
+  {% if field.help_text %}<div class="help">{{ field.help_text|safe }}</div>{% endif %}
+  {% for e in field.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+</div>

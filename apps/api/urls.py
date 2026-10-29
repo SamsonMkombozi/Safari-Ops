@@ -3,7 +3,7 @@ from rest_framework import routers
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 
 from apps.bookings.views import (
-    BookingReminderViewSet, BookingTrackingView, BookingViewSet, QuotationPublicView, QuotationViewSet,
+    BookingReminderViewSet, BookingTrackingView, BookingViewSet, PaymentViewSet, QuotationPublicView, QuotationViewSet,
 )
 from apps.content.views import (
     ContactMessageViewSet, CustomSafariRequestViewSet, EmailTemplateViewSet, TeamMemberViewSet,
@@ -32,6 +32,7 @@ router.register('custom-safari-requests', CustomSafariRequestViewSet, basename='
 
 # Staff/agent-only business data
 router.register('bookings', BookingViewSet, basename='booking')
+router.register('payments', PaymentViewSet, basename='payment')
 router.register('booking-reminders', BookingReminderViewSet, basename='bookingreminder')
 router.register('quotations', QuotationViewSet, basename='quotation')
 router.register('leads', LeadViewSet, basename='lead')

@@ -1,0 +1,27 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Booked revenue</span><span class="metric-value">{{ total_rev|money }}</span><span class="metric-sub">excl. cancelled</span></div>
+  <div class="metric-card"><span class="metric-label">Average booking</span><span class="metric-value">{{ avg_booking|money }}</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">Quote → booking</span><span class="metric-value">{{ q_conversion }}%</span><span class="metric-sub">{{ q_converted }} of {{ q_total }} sent</span></div>
+</div>
+<div class="split" style="margin-bottom:1.25rem">
+  <div class="admin-card"><div class="admin-card-header"><h3>Booked revenue by month</h3></div><div class="admin-card-body">{% include "dashboard/analytics/_bars.html" with series=revenue is_money=1 %}</div></div>
+  <div class="admin-card"><div class="admin-card-header"><h3>Cash collected by month</h3></div><div class="admin-card-body">{% include "dashboard/analytics/_bars.html" with series=collected is_money=1 %}</div></div>
+</div>
+<div class="split" style="margin-bottom:1.25rem">
+  <div class="admin-card"><div class="admin-card-header"><h3>Lead funnel</h3></div><div class="admin-card-body">
+    {% for f in funnel %}<div style="display:grid;grid-template-columns:100px 1fr 40px;gap:.6rem;align-items:center;margin-bottom:.45rem;font-size:.78rem"><span>{{ f.label }}</span><div class="bar"><span style="width:{{ f.pct }}%"></span></div><strong class="num">{{ f.n }}</strong></div>{% endfor %}
+  </div></div>
+  <div class="admin-card"><div class="admin-card-header"><h3>Lead sources</h3></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Source</th><th class="num">Leads</th><th class="num">Won</th></tr></thead>
+    <tbody>{% for s in sources %}<tr><td>{{ s.source }}</td><td class="num">{{ s.n }}</td><td class="num">{{ s.won }}</td></tr>{% empty %}<tr><td colspan="3" class="admin-empty">No leads.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+<div class="split">
+  <div class="admin-card"><div class="admin-card-header"><h3>Top packages</h3></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Package</th><th class="num">Bookings</th><th class="num">Revenue</th></tr></thead>
+    <tbody>{% for p in top_packages %}<tr><td>{{ p.package_name|default:"—" }}</td><td class="num">{{ p.n }}</td><td class="num">{{ p.v|money }}</td></tr>{% empty %}<tr><td colspan="3" class="admin-empty">No bookings.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="admin-card"><div class="admin-card-header"><h3>Source markets</h3></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Country</th><th class="num">Bookings</th><th class="num">Revenue</th></tr></thead>
+    <tbody>{% for c in countries %}<tr><td>{{ c.country }}</td><td class="num">{{ c.n }}</td><td class="num">{{ c.v|money }}</td></tr>{% empty %}<tr><td colspan="3" class="admin-empty">No data.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+<div class="admin-card" style="margin-top:1.25rem"><div class="admin-card-header"><h3>Bookings created per month</h3></div><div class="admin-card-body">{% include "dashboard/analytics/_bars.html" with series=bookings %}</div></div>
+{% endblock %}

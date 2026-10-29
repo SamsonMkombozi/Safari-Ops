@@ -1,0 +1,21 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="toolbar"><a href="{% url 'dashboard:message_list' %}" class="admin-btn admin-btn--outline">← Messages</a>
+  <div style="display:flex;gap:.5rem">
+    <form method="post" action="{% url 'dashboard:message_action' msg.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="to_lead"><button class="admin-btn admin-btn--outline">{% icon 'leads' 13 %} Create lead</button></form>
+    <form method="post" action="{% url 'dashboard:message_action' msg.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="unread"><button class="admin-btn admin-btn--muted">Mark unread</button></form>
+    {% if request.user.may_delete %}<form method="post" action="{% url 'dashboard:message_action' msg.pk %}" class="inline-form" data-confirm="Delete this message?">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="admin-btn admin-btn--danger">Delete</button></form>{% endif %}
+  </div></div>
+<div class="split">
+  <div class="admin-card"><div class="admin-card-header"><h3>{{ msg.subject|default:"(no subject)" }}</h3></div><div class="admin-card-body">
+    <dl class="kv" style="margin-bottom:1rem"><dt>From</dt><dd>{{ msg.full_name }} &lt;{{ msg.email }}&gt;</dd><dt>Phone</dt><dd>{{ msg.phone|default:"—" }}</dd><dt>Received</dt><dd>{{ msg.created_at|date:"d M Y H:i" }}</dd></dl>
+    <div style="font-size:.88rem;line-height:1.6">{{ msg.message|linebreaks }}</div>
+  </div></div>
+  <div class="admin-card"><div class="admin-card-header"><h3>Reply</h3></div><div class="admin-card-body">
+    <form method="post" action="{% url 'dashboard:message_action' msg.pk %}">{% csrf_token %}<input type="hidden" name="action" value="reply">
+      <textarea name="body" class="admin-input" rows="8" placeholder="Hi {{ msg.full_name }}, …" required></textarea>
+      <button class="admin-btn admin-btn--primary" style="margin-top:.75rem">{% icon 'email-queue' 13 %} Queue reply</button></form>
+  </div></div>
+</div>
+{% endblock %}

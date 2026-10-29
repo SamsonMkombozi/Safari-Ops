@@ -1,0 +1,10 @@
+{% extends "agent_portal/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Ref</th><th>Client</th><th>Package</th><th>Travel</th><th>Pax</th><th class="num">Total</th><th class="num">Paid</th><th>Status</th></tr></thead>
+  <tbody>{% for b in bookings %}<tr><td><span class="ref-code">{{ b.booking_ref }}</span></td><td><strong>{{ b.full_name }}</strong><div class="muted">{{ b.email }}</div></td><td>{{ b.package_name }}</td>
+    <td class="nowrap">{{ b.travel_date|date:"d M Y" }}</td><td>{{ b.travelers }}</td><td class="num">{{ b.total_amount|money }}</td><td class="num">{{ b.amount_paid|money }}</td><td>{% status_badge b.payment_status b.get_payment_status_display %}</td></tr>
+  {% empty %}<tr><td colspan="8" class="admin-empty">No bookings yet.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

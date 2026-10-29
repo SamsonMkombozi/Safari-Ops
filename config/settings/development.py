@@ -10,3 +10,9 @@ CSRF_COOKIE_SECURE = False
 SECURE_SSL_REDIRECT = False
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Plain storage locally so runserver serves edited CSS/JS without a collectstatic manifest.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}

@@ -1,0 +1,23 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Invoiced</span><span class="metric-value">{{ invoiced|money }}</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">Paid</span><span class="metric-value">{{ paid|money }}</span></div>
+  <div class="metric-card metric-card--amber"><span class="metric-label">Outstanding</span><span class="metric-value">{{ outstanding|money }}</span></div>
+</div>
+<div class="admin-filter-pills" style="margin-bottom:1rem">
+  {% for v, l in "|All,paid|Paid,partial|Part-paid,unpaid|Unpaid,overdue|Due soon / overdue"|split_pairs %}<a href="{% qs_replace status=v %}" class="admin-filter-pill{% if status_filter == v %} active{% endif %}">{{ l }}</a>{% endfor %}
+</div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Invoice</th><th>Client</th><th>Travel</th><th class="num">Total</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for b in page_obj %}
+  <tr><td><span class="ref-code">INV-{{ b.booking_ref }}</span><div class="muted">{{ b.created_at|date:"d M Y" }}</div></td><td><strong>{{ b.full_name }}</strong><div class="muted">{{ b.package_name }}</div></td>
+    <td class="nowrap">{{ b.travel_date|date:"d M Y" }}</td><td class="num">{{ b.total_amount|money:2 }}</td><td class="num">{{ b.amount_paid|money:2 }}</td><td class="num">{{ b.balance_due|money:2 }}</td>
+    <td>{% status_badge b.payment_status b.get_payment_status_display %}</td><td><a href="{% url 'dashboard:invoice_detail' b.pk %}" class="admin-btn admin-btn--outline" style="font-size:.65rem">View</a></td></tr>
+  {% empty %}<tr><td colspan="8" class="admin-empty">No invoices.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

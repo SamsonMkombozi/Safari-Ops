@@ -16,7 +16,9 @@ class SessionTimeoutMiddleware:
         if request.user.is_authenticated and not request.path.startswith('/api/'):
             last_active = request.session.get('last_active')
             now = time.time()
-            if last_active and (now - last_active) > settings.SESSION_TIMEOUT_MINUTES * 60:
+            from apps.core.settings_store import get_setting
+            timeout = max(5, int(get_setting('session_timeout_minutes', settings.SESSION_TIMEOUT_MINUTES)))
+            if last_active and (now - last_active) > timeout * 60:
                 logout(request)
                 return redirect(f"{reverse('accounts:login')}?reason=timeout")
             request.session['last_active'] = now

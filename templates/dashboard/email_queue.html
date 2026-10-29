@@ -1,0 +1,27 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="toolbar">
+  <div class="admin-filter-pills">
+    <a href="?" class="admin-filter-pill{% if not status_filter %} active{% endif %}">All</a>
+    <a href="?status=pending" class="admin-filter-pill admin-filter-pill--amber{% if status_filter == 'pending' %} active{% endif %}">Pending ({{ counts.pending }})</a>
+    <a href="?status=sent" class="admin-filter-pill admin-filter-pill--green{% if status_filter == 'sent' %} active{% endif %}">Sent ({{ counts.sent }})</a>
+    <a href="?status=failed" class="admin-filter-pill admin-filter-pill--red{% if status_filter == 'failed' %} active{% endif %}">Failed ({{ counts.failed }})</a>
+  </div>
+  <form method="post" action="{% url 'dashboard:email_queue_action' %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="process"><button class="admin-btn admin-btn--primary">{% icon 'refresh' 13 %} Process pending now</button></form>
+</div>
+{% if preview %}
+<div class="admin-card" style="margin-bottom:1.25rem"><div class="admin-card-header"><h3>{{ preview.subject }}</h3><a href="?status={{ status_filter }}" class="admin-icon-btn">{% icon 'close' 15 %}</a></div>
+  <div class="admin-card-body"><p class="muted">To {{ preview.to_name }} &lt;{{ preview.to_email }}&gt; · {{ preview.template }}</p><div style="border:1px solid var(--gray-200);padding:1rem;margin-top:.5rem">{{ preview.body|safe }}</div>
+  {% if preview.last_error %}<div class="admin-alert admin-alert--error" style="margin-top:.75rem">{{ preview.last_error }}</div>{% endif %}</div></div>
+{% endif %}
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Queued</th><th>To</th><th>Subject</th><th>Template</th><th>Attempts</th><th>Status</th><th></th></tr></thead>
+  <tbody>{% for e in page_obj %}
+  <tr><td class="nowrap">{{ e.created_at|date:"d M H:i" }}</td><td>{{ e.to_email }}</td><td><a class="admin-link" href="?status={{ status_filter }}&view={{ e.pk }}">{{ e.subject|truncatechars:60 }}</a></td><td class="muted">{{ e.template }}</td><td>{{ e.attempts }}</td><td>{% status_badge e.status %}</td>
+    <td class="nowrap">{% if e.status == 'failed' %}<form method="post" action="{% url 'dashboard:email_queue_action' %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="retry"><input type="hidden" name="id" value="{{ e.pk }}"><button class="admin-icon-btn" title="Retry">{% icon 'refresh' 14 %}</button></form>{% endif %}
+      <form method="post" action="{% url 'dashboard:email_queue_action' %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ e.pk }}"><button class="admin-icon-btn admin-icon-btn--danger" title="Remove">{% icon 'trash' 14 %}</button></form></td></tr>
+  {% empty %}<tr><td colspan="7" class="admin-empty">Queue is empty.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

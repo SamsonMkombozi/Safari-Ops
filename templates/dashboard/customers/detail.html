@@ -1,0 +1,24 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="toolbar"><a href="{% url 'crud:customers' %}" class="admin-btn admin-btn--outline">← Customers</a><a href="{% url 'crud:customers-edit' customer.pk %}" class="admin-btn admin-btn--outline">{% icon 'edit' 13 %} Edit</a></div>
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Lifetime value</span><span class="metric-value">{{ lifetime_value|money }}</span><span class="metric-sub">{{ bookings|length }} booking{{ bookings|length|pluralize }}</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">Paid</span><span class="metric-value">{{ paid|money }}</span></div>
+  <div class="metric-card"><span class="metric-label">Contact</span><span class="metric-value" style="font-size:.95rem">{{ customer.email }}</span><span class="metric-sub">{{ customer.phone|default:"" }} {{ customer.country }}</span></div>
+</div>
+<div class="stack">
+  <div class="admin-card"><div class="admin-card-header"><h3>Bookings</h3></div><div class="admin-table-wrap"><table class="admin-table">
+    <thead><tr><th>Ref</th><th>Package</th><th>Travel</th><th class="num">Total</th><th>Status</th></tr></thead><tbody>
+    {% for b in bookings %}<tr><td><a class="admin-link ref-code" href="{% url 'dashboard:booking_detail' b.pk %}">{{ b.booking_ref }}</a></td><td>{{ b.package_name }}</td><td>{{ b.travel_date|date:"d M Y" }}</td><td class="num">{{ b.total_amount|money }}</td><td>{% status_badge b.payment_status b.get_payment_status_display %}</td></tr>
+    {% empty %}<tr><td colspan="5" class="admin-empty">No bookings.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="admin-card"><div class="admin-card-header"><h3>Quotations</h3></div><div class="admin-table-wrap"><table class="admin-table">
+    <thead><tr><th>Ref</th><th>Package</th><th class="num">Total</th><th>Status</th></tr></thead><tbody>
+    {% for q in quotations %}<tr><td><a class="admin-link ref-code" href="{% url 'dashboard:quotation_detail' q.pk %}">{{ q.quote_ref }}</a></td><td>{{ q.package_name }}</td><td class="num">{{ q.grand_total|money }}</td><td>{% status_badge q.status %}</td></tr>
+    {% empty %}<tr><td colspan="4" class="admin-empty">No quotations.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="admin-card"><div class="admin-card-header"><h3>Leads</h3></div><div class="admin-table-wrap"><table class="admin-table">
+    <thead><tr><th>Created</th><th>Source</th><th>Agent</th><th>Stage</th></tr></thead><tbody>
+    {% for l in leads %}<tr><td>{{ l.created_at|date:"d M Y" }}</td><td>{{ l.source }}</td><td>{{ l.agent.get_full_name|default:"—" }}</td><td>{% status_badge l.pipeline_stage l.get_pipeline_stage_display %}</td></tr>
+    {% empty %}<tr><td colspan="4" class="admin-empty">No leads.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

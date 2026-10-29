@@ -1,0 +1,28 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Collected (all-time)</span><span class="metric-value">{{ collected_total|money }}</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">Collected this month</span><span class="metric-value">{{ collected_month|money }}</span></div>
+  <div class="metric-card {% if refunds %}metric-card--red{% endif %}"><span class="metric-label">Refunds</span><span class="metric-value">{{ refunds|money }}</span></div>
+</div>
+<div class="split">
+  <div>
+    <div class="toolbar"><form method="get"><select name="method" class="admin-input" onchange="this.form.submit()"><option value="">All methods</option>{% for v, l in methods %}<option value="{{ v }}"{% if v == method_filter %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></form></div>
+    <div class="admin-table-wrap"><table class="admin-table">
+      <thead><tr><th>Date</th><th>Booking</th><th>Guest</th><th>Type</th><th>Method</th><th>Reference</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+      {% for p in page_obj %}
+      <tr><td class="nowrap">{{ p.received_at|date:"d M Y" }}</td><td><a class="admin-link ref-code" href="{% url 'dashboard:booking_detail' p.booking.pk %}">{{ p.booking.booking_ref }}</a></td><td>{{ p.booking.full_name }}</td>
+        <td>{{ p.get_kind_display }}</td><td>{{ p.get_method_display }}</td><td class="muted">{{ p.reference|default:"—" }}</td><td class="num"><strong>{{ p.amount|money:2 }}</strong></td></tr>
+      {% empty %}<tr><td colspan="7" class="admin-empty">No payments yet.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+    {% include "partials/pagination.html" %}
+  </div>
+  <div class="admin-card"><div class="admin-card-header"><h3>By method</h3></div><div class="admin-card-body">
+    {% for m in by_method %}<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:.35rem 0;border-bottom:1px solid var(--gray-100)"><span>{{ m.label }} <span class="muted">({{ m.n }})</span></span><strong>{{ m.total|money }}</strong></div>
+    {% empty %}<p class="muted">Nothing yet.</p>{% endfor %}
+  </div></div>
+</div>
+{% endblock %}

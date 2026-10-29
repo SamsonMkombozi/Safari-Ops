@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — {{ SITE_NAME|default:"Safari-Ops" }}{% endblock %}
+{% block body_class %}login-body{% endblock %}
+{% block body %}
+<div class="login-wrap" style="grid-template-columns:1fr">
+  <section class="login-panel" id="main-content">
+    <div class="login-card" style="text-align:center">
+      <p class="crumb">Error {{ code }}</p>
+      <h1 style="margin:.4rem 0 .6rem">{{ heading }}</h1>
+      <p class="lede">{{ message }}</p>
+      <a class="admin-btn admin-btn--primary" href="/">Go to dashboard</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

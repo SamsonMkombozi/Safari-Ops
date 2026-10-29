@@ -1,10 +1,10 @@
-from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.middleware import log_activity
 from apps.core.permissions import IsOwnerOrStaff, STAFF_ROLES
+from apps.crm import pipeline
 
 from .models import AgentTarget, Commission, Customer, Lead
 from .serializers import AgentTargetSerializer, CommissionSerializer, CustomerSerializer, LeadSerializer
@@ -33,28 +33,14 @@ class LeadViewSet(OwnershipScopedViewSet):
 
     @action(detail=True, methods=['post'])
     def set_stage(self, request, pk=None):
-        """Mirrors PipelineSync::setLeadStageManual() — moving a lead to 'booked' is the one transition with a side effect (commission creation), handled explicitly here rather than in a generic PATCH."""
+        """Staff-only stage change through the shared PipelineSync port — moving to 'booked' creates the agent's commission there, exactly once."""
+        if request.user.role not in STAFF_ROLES:
+            return Response({'success': False, 'message': 'Only staff can change a lead\'s pipeline stage.'}, status=403)
         lead = self.get_object()
-        new_stage = request.data.get('pipeline_stage')
-        valid_stages = dict(Lead._meta.get_field('pipeline_stage').choices)
-        if new_stage not in valid_stages:
-            return Response({'success': False, 'message': 'Invalid pipeline stage.'}, status=400)
-
-        was_booked = lead.pipeline_stage == 'booked'
-        lead.pipeline_stage = new_stage
-        if new_stage == 'booked' and not was_booked:
-            lead.converted_at = timezone.now()
-        lead.save(update_fields=['pipeline_stage', 'converted_at', 'updated_at'])
-
-        if new_stage == 'booked' and not was_booked and lead.booking_value:
-            rate = lead.commission_rate or 10
-            Commission.objects.create(
-                agent=lead.agent, lead=lead, booking_ref=lead.booking_ref,
-                client_name=lead.full_name, package_name=lead.package_name,
-                booking_value=lead.booking_value, commission_rate=rate,
-                commission_amount=(lead.booking_value * rate / 100), travel_date=lead.travel_date,
-            )
-        log_activity(request, request.user, 'status_change', 'Lead', lead.id, f'Stage -> {new_stage}')
+        ok, msg, _ = pipeline.set_lead_stage_manual(lead, request.data.get('pipeline_stage'))
+        if not ok:
+            return Response({'success': False, 'message': msg}, status=400)
+        log_activity(request, request.user, 'status_change', 'Lead', lead.id, f'Stage -> {lead.pipeline_stage}')
         return Response(LeadSerializer(lead).data)
 
 
@@ -64,7 +50,9 @@ class CommissionViewSet(OwnershipScopedViewSet):
     http_method_names = ['get', 'head', 'options', 'post']  # agents never edit their own commission rows directly
 
     def get_permissions(self):
-        if self.action in ('approve', 'mark_paid'):
+        # Creating, approving or paying a commission is staff-only — an agent
+        # minting or approving their own commission row is self-dealing.
+        if self.action in ('create', 'approve', 'mark_paid'):
             from apps.core.permissions import IsStaffRole
             return [IsStaffRole()]
         return super().get_permissions()
@@ -72,19 +60,14 @@ class CommissionViewSet(OwnershipScopedViewSet):
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         commission = self.get_object()
-        commission.status = 'approved'
-        commission.approved_by = request.user
-        commission.approved_at = timezone.now()
-        commission.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+        pipeline.set_commission_status(commission, 'approved', request.user)
         log_activity(request, request.user, 'status_change', 'Commission', commission.id, 'Approved')
         return Response(CommissionSerializer(commission).data)
 
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):
         commission = self.get_object()
-        commission.status = 'paid'
-        commission.paid_at = timezone.now()
-        commission.save(update_fields=['status', 'paid_at', 'updated_at'])
+        pipeline.set_commission_status(commission, 'paid', request.user)
         log_activity(request, request.user, 'status_change', 'Commission', commission.id, 'Marked paid')
         return Response(CommissionSerializer(commission).data)
 

@@ -1,0 +1,24 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Average rating</span><span class="metric-value">{{ avg|floatformat:1 }} ★</span><span class="metric-sub">{{ count }} reviews</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">NPS</span><span class="metric-value">{% if nps is None %}—{% else %}{{ nps }}{% endif %}</span><span class="metric-sub">{{ promoters }} promoters · {{ passives }} passives · {{ detractors }} detractors</span></div>
+  <div class="metric-card"><span class="metric-label">Repeat customers</span><span class="metric-value">{{ repeat_customers }}</span></div>
+  <div class="metric-card {% if open_incidents %}metric-card--red{% endif %}"><span class="metric-label">Open incidents</span><span class="metric-value">{{ open_incidents }}</span></div>
+</div>
+<div class="split">
+  <div class="admin-card"><div class="admin-card-header"><h3>Recent reviews</h3><a href="{% url 'crud:reviews' %}" class="admin-btn admin-btn--outline" style="font-size:.65rem">Manage →</a></div><div class="admin-card-body">
+    {% for r in recent %}<div style="padding:.5rem 0;border-bottom:1px solid var(--gray-100)"><strong>{{ r.guest_name }}</strong> <span class="muted">{{ r.guest_country }}</span> · {{ r.rating }}★ {% if r.is_published %}{% status_badge 'paid' 'published' %}{% endif %}<div style="font-size:.8rem">{{ r.comment|truncatechars:180 }}</div></div>
+    {% empty %}<p class="muted">No reviews yet.</p>{% endfor %}
+  </div></div>
+  <div class="stack">
+    <div class="admin-card"><div class="admin-card-header"><h3>Rating distribution</h3></div><div class="admin-card-body">
+      {% for d in dist %}<div style="display:grid;grid-template-columns:40px 1fr 30px;gap:.6rem;align-items:center;margin-bottom:.4rem;font-size:.78rem"><span>{{ d.stars }}★</span><div class="bar"><span style="width:{{ d.pct }}%"></span></div><strong class="num">{{ d.n }}</strong></div>{% endfor %}
+    </div></div>
+    <div class="admin-card"><div class="admin-card-header"><h3>Incidents by type</h3></div><div class="admin-card-body">
+      {% for i in incidents %}<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:.25rem 0"><span>{{ i.incident_type|cut:"_"|capfirst }}</span><strong>{{ i.n }}</strong></div>{% empty %}<p class="muted">None.</p>{% endfor %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}

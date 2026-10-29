@@ -11,9 +11,12 @@ from rest_framework.views import APIView
 from apps.core.middleware import log_activity
 from apps.core.permissions import IsStaffRole
 
-from .models import Booking, BookingReminder, Quotation
+from rest_framework.decorators import action
+
+from . import services
+from .models import Booking, BookingReminder, Payment, Quotation
 from .serializers import (
-    BookingReminderSerializer, BookingSerializer, BookingTrackingSerializer,
+    BookingReminderSerializer, BookingSerializer, BookingTrackingSerializer, PaymentSerializer,
     QuotationPublicSerializer, QuotationSerializer,
 )
 
@@ -26,8 +29,31 @@ class BookingViewSet(viewsets.ModelViewSet):
     permission_classes = [IsStaffRole]
 
     def perform_create(self, serializer):
-        booking = serializer.save(created_by=self.request.user)
+        booking = serializer.save(created_by=self.request.user, booking_ref=services.generate_booking_ref())
         log_activity(self.request, self.request.user, 'create', 'Booking', booking.id, f'Created booking {booking.booking_ref}')
+
+    @action(detail=True, methods=['post'])
+    def record_payment(self, request, pk=None):
+        """Same write path as the dashboard's Record Payment form — ledger row + amount_paid/status recompute."""
+        booking = self.get_object()
+        ser = PaymentSerializer(data={**request.data, 'booking': booking.pk})
+        ser.is_valid(raise_exception=True)
+        d = ser.validated_data
+        try:
+            booking, payment = services.record_payment(booking, d['amount'], d.get('method', 'bank_transfer'), d.get('reference', ''),
+                                                       d.get('received_at'), d.get('notes', ''), request.user)
+        except ValueError as exc:
+            return Response({'success': False, 'message': str(exc)}, status=400)
+        log_activity(request, request.user, 'create', 'Payment', payment.pk if payment else '', f'{booking.booking_ref} via API')
+        return Response({'success': True, 'booking': BookingSerializer(booking).data,
+                         'payment': PaymentSerializer(payment).data if payment else None})
+
+
+class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only ledger — payments are only ever written through BookingViewSet.record_payment."""
+    queryset = Payment.objects.select_related('booking').all()
+    serializer_class = PaymentSerializer
+    permission_classes = [IsStaffRole]
 
 
 class QuotationViewSet(viewsets.ModelViewSet):
@@ -36,7 +62,7 @@ class QuotationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsStaffRole]
 
     def perform_create(self, serializer):
-        quote = serializer.save(created_by=self.request.user)
+        quote = serializer.save(created_by=self.request.user, quote_ref=services.generate_quote_ref())
         log_activity(self.request, self.request.user, 'create', 'Quotation', quote.id, f'Created quotation {quote.quote_ref}')
 
 

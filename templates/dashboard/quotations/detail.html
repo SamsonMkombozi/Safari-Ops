@@ -1,0 +1,60 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="toolbar">
+  <div style="display:flex;gap:.5rem;align-items:center">{% status_badge quote.status quote.get_status_display %}<span class="muted">Valid until {{ quote.valid_until|date:"d M Y" }} · viewed {{ quote.view_count }}×{% if quote.last_viewed_at %} (last {{ quote.last_viewed_at|timesince }} ago){% endif %}</span></div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'dashboard:quotation_list' %}" class="admin-btn admin-btn--outline">← Quotations</a>
+    {% if quote.status != 'converted' %}
+    <form method="post" action="{% url 'dashboard:quotation_action' quote.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="send"><button class="admin-btn admin-btn--outline">{% icon 'email-queue' 13 %} Email to client</button></form>
+    {% if request.user.may_change_status %}
+    <form method="post" action="{% url 'dashboard:quotation_action' quote.pk %}" class="inline-form" data-confirm="Convert {{ quote.quote_ref }} into a booking? The client receives a confirmation with their tracking password." data-confirm-safe="1" data-confirm-label="Convert">{% csrf_token %}<input type="hidden" name="action" value="convert"><button class="admin-btn admin-btn--success">{% icon 'bookings' 13 %} Convert to booking</button></form>
+    {% endif %}{% else %}
+    <a class="admin-btn admin-btn--success" href="{% url 'dashboard:booking_list' %}?q={{ quote.booking_ref }}">Booking {{ quote.booking_ref }} →</a>
+    {% endif %}
+  </div>
+</div>
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Grand total</span><span class="metric-value">{{ quote.grand_total|money:2 }}</span><span class="metric-sub">{{ quote.per_person|money:2 }} per person</span></div>
+  <div class="metric-card"><span class="metric-label">Deposit</span><span class="metric-value">{{ quote.deposit_amount|money:2 }}</span><span class="metric-sub">balance {{ quote.balance_due|money:2 }}</span></div>
+  {% if request.user.is_admin_role %}<div class="metric-card metric-card--blue"><span class="metric-label">Margin</span><span class="metric-value">{{ quote.markup_amount|money:2 }}</span><span class="metric-sub">{{ quote.markup_pct }}% markup · −{{ quote.discount_amount|money:2 }} discount</span></div>{% endif %}
+</div>
+<div class="split">
+  <div class="admin-card"><div class="admin-card-header"><h3>Line items</h3></div><div class="admin-table-wrap"><table class="admin-table">
+    <thead><tr><th>Item</th><th>Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr></thead>
+    <tbody>{% for li in quote.line_items %}<tr><td>{{ li.description }}<div class="muted">{{ li.category }}</div></td><td class="muted">{{ li.quantity_str }}</td><td class="num">{{ li.unit_price|money:2 }}</td><td class="num">{{ li.amount|money:2 }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="admin-empty">No line items.</td></tr>{% endfor %}</tbody>
+    <tfoot>
+      <tr><td colspan="3" class="num">Subtotal</td><td class="num">{{ quote.subtotal|money:2 }}</td></tr>
+      {% if quote.markup_amount %}<tr><td colspan="3" class="num">Markup ({{ quote.markup_pct }}%)</td><td class="num">{{ quote.markup_amount|money:2 }}</td></tr>{% endif %}
+      {% if quote.discount_amount %}<tr><td colspan="3" class="num">Discount ({{ quote.discount_pct }}%)</td><td class="num">−{{ quote.discount_amount|money:2 }}</td></tr>{% endif %}
+      <tr><td colspan="3" class="num">VAT</td><td class="num">{{ quote.vat|money:2 }}</td></tr>
+      <tr><td colspan="3" class="num"><strong>Total</strong></td><td class="num"><strong>{{ quote.grand_total|money:2 }}</strong></td></tr>
+    </tfoot>
+  </table></div></div>
+  <div class="stack">
+    <div class="admin-card"><div class="admin-card-header"><h3>Client &amp; trip</h3></div><div class="admin-card-body"><dl class="kv">
+      <dt>Client</dt><dd><strong>{{ quote.client_name }}</strong><br>{{ quote.client_email }} {{ quote.client_phone }}</dd>
+      <dt>Country</dt><dd>{{ quote.client_country|default:"—" }}</dd>
+      <dt>Trip</dt><dd>{{ quote.package_name }} · {{ quote.duration_days }} days · {{ quote.get_accommodation_level_display }}</dd>
+      <dt>Party</dt><dd>{{ quote.adults }} adults, {{ quote.children }} children</dd>
+      <dt>Start</dt><dd>{{ quote.start_date|date:"d M Y"|default:"—" }} ({{ quote.get_season_display }} season)</dd>
+      <dt>Destinations</dt><dd>{{ quote.destinations|join:", "|default:"—" }}</dd>
+      <dt>Lead</dt><dd>{% if quote.lead %}{{ quote.lead.full_name }} {% status_badge quote.lead.pipeline_stage %}{% else %}—{% endif %}</dd>
+      <dt>Created by</dt><dd>{{ quote.created_by.get_full_name|default:"—" }}</dd>
+      <dt>Client link</dt><dd><a class="admin-link" href="{{ public_url }}" target="_blank" rel="noopener">{{ public_url|truncatechars:48 }}</a></dd>
+      {% if quote.notes %}<dt>Notes</dt><dd>{{ quote.notes|linebreaksbr }}</dd>{% endif %}
+    </dl></div></div>
+    {% if quote.status != 'converted' and request.user.may_change_status %}
+    <div class="admin-card"><div class="admin-card-header"><h3>Status</h3></div><div class="admin-card-body">
+      <form method="post" action="{% url 'dashboard:quotation_action' quote.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="status">
+        <select name="status" class="admin-input">{% for v, l in statuses %}{% if v != 'converted' %}<option value="{{ v }}"{% if v == quote.status %} selected{% endif %}>{{ l }}</option>{% endif %}{% endfor %}</select>
+        <button class="admin-btn admin-btn--primary">Update</button></form>
+      {% if request.user.may_delete %}
+      <form method="post" action="{% url 'dashboard:quotation_action' quote.pk %}" style="margin-top:1rem" data-confirm="Delete quotation {{ quote.quote_ref }}?">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="admin-btn admin-btn--danger">{% icon 'trash' 13 %} Delete</button></form>
+      {% endif %}
+    </div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% with current=request.user.theme_preference|default:"system" %}
+<details class="theme-picker">
+  <summary class="admin-icon-btn{{ extra_class }}" aria-label="Change theme" title="Theme">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/></svg>
+  </summary>
+  <div class="theme-menu" role="menu" aria-label="Theme">
+    <div class="theme-menu-title">Appearance</div>
+    {% for value, label in theme_options %}
+    <button type="button" role="menuitemradio" class="theme-option" data-theme-set="{{ value }}" aria-checked="{% if value == current %}true{% else %}false{% endif %}">
+      <span class="theme-swatch theme-swatch--{{ value }}"></span>{{ label }}<span class="theme-check" aria-hidden="true">✓</span>
+    </button>
+    {% endfor %}
+  </div>
+</details>
+{% endwith %}

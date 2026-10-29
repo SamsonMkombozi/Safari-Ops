@@ -1,0 +1,18 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="toolbar">
+  <div class="admin-filter-pills"><a href="?" class="admin-filter-pill{% if not role_filter %} active{% endif %}">All</a>{% for v, l in roles %}<a href="?role={{ v }}" class="admin-filter-pill{% if role_filter == v %} active{% endif %}">{{ l }}</a>{% endfor %}</div>
+  <a href="{% url 'dashboard:user_new' %}" class="admin-btn admin-btn--primary">{% icon 'plus' 13 %} Add user</a>
+</div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Commission</th><th>Monthly target</th><th>Permissions</th><th>Last login</th><th>Active</th><th></th></tr></thead>
+  <tbody>{% for u in users %}
+  <tr><td><strong>{{ u.get_full_name|default:u.username }}</strong><div class="muted">@{{ u.username }}</div></td><td>{{ u.email }}</td><td>{% status_badge u.role u.get_role_display %}</td>
+    <td>{% if u.role == 'agent' %}{{ u.commission_rate|default:"default" }}{% if u.commission_rate %}%{% endif %}{% else %}—{% endif %}</td><td>{% if u.target_monthly %}{{ u.target_monthly|money }}{% else %}—{% endif %}</td>
+    <td class="muted">{% if u.is_admin_role %}full{% elif u.role == 'manager' %}{% if u.can_change_status %}status{% endif %}{% if u.can_delete_records %} · delete{% endif %}{% else %}own records{% endif %}</td>
+    <td class="muted">{{ u.last_login|date:"d M Y H:i"|default:"never" }}</td><td>{% if u.is_active %}<span class="status-dot status-dot--green"></span>{% else %}<span class="status-dot status-dot--gray"></span>{% endif %}</td>
+    <td><a href="{% url 'dashboard:user_edit' u.pk %}" class="admin-icon-btn">{% icon 'edit' 15 %}</a></td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endblock %}

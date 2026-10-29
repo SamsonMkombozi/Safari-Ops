@@ -1,0 +1,38 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="toolbar no-print">
+  <a href="{% url 'dashboard:booking_detail' booking.pk %}" class="admin-btn admin-btn--outline">← Booking</a>
+  <button onclick="window.print()" class="admin-btn admin-btn--primary">{% icon 'download' 13 %} Print / Save PDF</button>
+</div>
+<div class="admin-card" style="max-width:860px">
+  <div class="admin-card-body" style="padding:2rem">
+    <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem">
+      <div><div style="font-family:var(--font-disp);font-size:1.6rem">{{ SITE_NAME }}</div><div class="muted">Arusha, Tanzania</div></div>
+      <div style="text-align:right"><div style="font-size:1.1rem;font-weight:700">{% if is_paid %}INVOICE — PAID{% elif booking.amount_paid %}INVOICE — PART PAID{% else %}PRO-FORMA INVOICE{% endif %}</div>
+        <div class="muted">INV-{{ booking.booking_ref }} · {{ today|date:"d M Y" }}</div></div>
+    </div>
+    <dl class="kv" style="margin-bottom:1.25rem">
+      <dt>Bill to</dt><dd><strong>{{ booking.full_name }}</strong><br>{{ booking.email }} · {{ booking.phone }}{% if booking.country %}<br>{{ booking.country }}{% endif %}</dd>
+      <dt>Trip</dt><dd>{{ booking.package_name }} — {{ booking.travel_date|date:"d M Y" }} · {{ booking.travelers }} traveler{{ booking.travelers|pluralize }}</dd>
+    </dl>
+    <table class="admin-table">
+      <thead><tr><th>Description</th><th>Qty</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        {% for li in line_items %}<tr><td>{{ li.description }}</td><td class="muted">{{ li.quantity_str }}</td><td class="num">{{ li.amount|money:2 }}</td></tr>
+        {% empty %}<tr><td>{{ booking.package_name }}</td><td>{{ booking.travelers }} pax</td><td class="num">{{ subtotal|money:2 }}</td></tr>{% endfor %}
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2" class="num">Subtotal (excl. VAT)</td><td class="num">{{ subtotal|money:2 }}</td></tr>
+        <tr><td colspan="2" class="num">VAT ({{ vat_pct|floatformat:0 }}%)</td><td class="num">{{ vat|money:2 }}</td></tr>
+        <tr><td colspan="2" class="num"><strong>Total</strong></td><td class="num"><strong>{{ booking.total_amount|money:2 }}</strong></td></tr>
+        {% for p in payments %}<tr><td colspan="2" class="num muted">{{ p.get_kind_display }} received {{ p.received_at|date:"d M Y" }} ({{ p.get_method_display }})</td><td class="num">−{{ p.amount|money:2 }}</td></tr>{% endfor %}
+        <tr><td colspan="2" class="num"><strong>Balance due</strong></td><td class="num"><strong>{{ booking.balance_due|money:2 }}</strong></td></tr>
+      </tfoot>
+    </table>
+    {% if not is_paid %}
+    <div style="margin-top:1.5rem;font-size:.8rem"><strong>Payment details</strong><br>{{ bank.bank_name }} · {{ bank.bank_account_name }} · Acc {{ bank.bank_account_no|default:"(set in Settings)" }} · SWIFT {{ bank.bank_swift }}<br>Wise: {{ bank.wise_email }} · Reference: {{ booking.booking_ref }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

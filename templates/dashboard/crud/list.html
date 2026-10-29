@@ -1,0 +1,54 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+{% if res.help %}<div class="admin-alert admin-alert--info" style="font-weight:500">{{ res.help }}</div>{% endif %}
+<div class="toolbar">
+  <form method="get">
+    {% if res.search %}<input type="search" name="q" value="{{ q }}" class="admin-input" placeholder="Search {{ res.title|lower }}…">{% endif %}
+    {% for f in filters %}
+    <select name="{{ f.name }}" class="admin-input" onchange="this.form.submit()" style="max-width:180px">
+      <option value="">{{ f.label }}: all</option>
+      {% for v, l in f.choices %}<option value="{{ v }}"{% if v == f.current %} selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+    {% endfor %}
+    {% if res.search %}<button class="admin-btn admin-btn--outline" type="submit">{% icon 'search' 13 %} Search</button>{% endif %}
+    {% if q or request.GET %}<a href="{{ request.path }}" class="admin-btn admin-btn--muted">Reset</a>{% endif %}
+  </form>
+  {% if res.creatable %}<a href="{% url 'crud:'|add:res.slug|add:'-new' %}" class="admin-btn admin-btn--primary">{% icon 'plus' 13 %} Add {{ res.singular }}</a>{% endif %}
+</div>
+
+<div class="admin-table-wrap">
+<table class="admin-table">
+  <thead><tr>{% for attr, label in res.columns %}<th>{{ label }}</th>{% endfor %}<th style="width:1%">Actions</th></tr></thead>
+  <tbody>
+  {% for obj in page_obj %}
+  <tr>
+    {% for attr, label in res.columns %}
+    {% with v=obj|get_attr:attr %}
+    <td{% if forloop.first %} style="font-weight:600"{% endif %}>
+      {% if forloop.first and res.detail_url %}<a href="{% url res.detail_url obj.pk %}" class="admin-link">{{ v }}</a>
+      {% elif v is True %}<span class="status-dot status-dot--green"></span> Yes
+      {% elif v is False %}<span class="status-dot status-dot--gray"></span> No
+      {% elif attr == 'status' or attr == 'severity' %}{% status_badge obj|raw_attr:attr v %}
+      {% elif attr == 'contract' %}{% if obj.contract %}<a class="admin-link" href="{% url 'dashboard:supplier_contract' obj.pk %}">{% icon 'download' 13 %} PDF</a>{% else %}—{% endif %}
+      {% else %}{{ v|default_if_none:""|truncatechars:70|default:"—" }}{% endif %}
+    </td>
+    {% endwith %}
+    {% endfor %}
+    <td class="nowrap">
+      <a href="{% url 'crud:'|add:res.slug|add:'-edit' obj.pk %}" class="admin-icon-btn" title="Edit">{% icon 'edit' 15 %}</a>
+      {% if res.deletable and request.user.may_delete %}
+      <form method="post" action="{% url 'crud:'|add:res.slug|add:'-delete' obj.pk %}" class="inline-form" data-confirm="{% if res.soft_delete %}Deactivate{% else %}Delete{% endif %} “{{ obj }}”?">
+        {% csrf_token %}<button class="admin-icon-btn admin-icon-btn--danger" title="{% if res.soft_delete %}Deactivate{% else %}Delete{% endif %}">{% icon 'trash' 15 %}</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="{{ res.columns|length|add:1 }}" class="admin-empty">No {{ res.title|lower }} found.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "partials/pagination.html" %}
+{% endblock %}

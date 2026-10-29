@@ -94,6 +94,10 @@ class Commission(TimeStampedModel):
 
     class Meta:
         ordering = ['-created_at']
+        # One commission per lead — the legacy uniq_commissions_lead index.
+        # MySQL unique indexes allow many NULLs, so manual (lead-less)
+        # commissions are unaffected.
+        constraints = [models.UniqueConstraint(fields=['lead'], name='uniq_commission_lead')]
 
     def __str__(self):
         return f'{self.agent} — {self.booking_ref or self.client_name}'

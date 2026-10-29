@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block body_class %}login-body{% endblock %}
+{% block body %}
+<div class="login-wrap" style="grid-template-columns:1fr">
+  <section class="login-panel" id="main-content">
+    <div class="login-theme">{% include "partials/theme_toggle.html" %}</div>
+    <div class="login-card">
+      <p class="crumb" style="margin-bottom:.5rem">{{ SITE_NAME }}</p>
+      {% block card %}{% endblock %}
+      <p class="muted" style="margin-top:1.5rem"><a class="admin-link" href="{% url 'accounts:login' %}">← Back to sign in</a></p>
+    </div>
+  </section>
+</div>
+{% endblock %}

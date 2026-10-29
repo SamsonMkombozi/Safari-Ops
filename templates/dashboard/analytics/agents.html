@@ -1,0 +1,13 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Agent</th><th class="num">Leads</th><th class="num">Won</th><th class="num">Conversion</th><th class="num">Booked value</th><th>This month vs target</th><th class="num">Pending</th><th class="num">Approved</th><th class="num">Paid</th></tr></thead>
+  <tbody>{% for r in rows %}
+  <tr><td><strong>{{ r.agent.get_full_name|default:r.agent.username }}</strong><div class="muted">{{ r.agent.commission_rate|default:"default" }}{% if r.agent.commission_rate %}%{% endif %} commission</div></td>
+    <td class="num">{{ r.leads }}</td><td class="num">{{ r.won }}</td><td class="num">{{ r.conversion }}%</td><td class="num"><strong>{{ r.value|money }}</strong></td>
+    <td style="min-width:160px">{% if r.target_pct is not None %}<div class="bar"><span style="width:{{ r.target_pct }}%"></span></div><div class="muted">{{ r.month_value|money }} of {{ r.target|money }}</div>{% else %}<span class="muted">{{ r.month_value|money }} · no target</span>{% endif %}</td>
+    <td class="num">{{ r.pending|money }}</td><td class="num">{{ r.approved|money }}</td><td class="num">{{ r.paid|money }}</td></tr>
+  {% empty %}<tr><td colspan="9" class="admin-empty">No agents.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

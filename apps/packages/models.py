@@ -7,6 +7,7 @@ ACCOMMODATION_LEVELS = [
     ('budget', 'Budget'),
     ('midrange', 'Mid-Range'),
     ('highend', 'High-End'),
+    ('luxury', 'Luxury'),  # used by 10 legacy lodges + 2 packages; was missing, so those rows failed form validation
     ('ultra_luxury', 'Ultra Luxury'),
 ]
 
@@ -43,6 +44,8 @@ class Vehicle(TimeStampedModel):
     daily_rate = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     fuel_cost_day = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     driver_cost_day = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    maintenance_cost_day = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    insurance_cost_day = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='standard')
     is_active = models.BooleanField(default=True)
     images = models.JSONField(default=list, blank=True)
@@ -62,6 +65,7 @@ class ParkFee(TimeStampedModel):
     child_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     resident_adult = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     resident_child = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    vehicle_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     fee_unit = models.CharField(max_length=30, default='per_person_per_entry')
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)

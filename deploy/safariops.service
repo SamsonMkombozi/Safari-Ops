@@ -1,0 +1,19 @@
+# /etc/systemd/system/safariops.service — then: systemctl daemon-reload && systemctl enable --now safariops
+[Unit]
+Description=Safari-Ops (gunicorn)
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/safariops
+Environment=DJANGO_SETTINGS_MODULE=config.settings.production
+EnvironmentFile=/var/www/safariops/.env
+ExecStart=/var/www/safariops/venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

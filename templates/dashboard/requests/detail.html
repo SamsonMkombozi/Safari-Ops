@@ -1,0 +1,32 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="toolbar">
+  <a href="{% url 'dashboard:request_list' %}" class="admin-btn admin-btn--outline">← Requests</a>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'dashboard:quotation_new' %}?from_request={{ req.pk }}" class="admin-btn admin-btn--primary">{% icon 'quotations' 13 %} Build quotation</a>
+    <form method="post" action="{% url 'dashboard:request_action' req.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="to_lead"><button class="admin-btn admin-btn--outline">{% icon 'leads' 13 %} Convert to lead</button></form>
+  </div>
+</div>
+<div class="split">
+  <div class="admin-card"><div class="admin-card-header"><h3>{{ req.full_name }}</h3>{% status_badge req.status req.get_status_display %}</div><div class="admin-card-body"><dl class="kv">
+    <dt>Contact</dt><dd>{{ req.email }} · {{ req.phone|default:"—" }}</dd><dt>Country</dt><dd>{{ req.country|default:"—" }}</dd>
+    <dt>Travelers</dt><dd>{{ req.adults|default:0 }} adults, {{ req.children|default:0 }} children, {{ req.infants|default:0 }} infants</dd>
+    <dt>Dates</dt><dd>{{ req.start_date|date:"d M Y"|default:"—" }} · {{ req.duration_days|default:"?" }} days {% if req.flexible_dates %}(flexible: {{ req.flexible_dates }}){% endif %}</dd>
+    <dt>Destinations</dt><dd>{{ req.destinations|default:"—" }}</dd><dt>Experiences</dt><dd>{{ req.experiences|default:"—" }}</dd>
+    <dt>Accommodation</dt><dd>{{ req.accommodation_standard|default:"—" }} · mainland {{ req.mainland_accommodation|default:"—" }} · beach {{ req.beach_accommodation|default:"—" }}</dd>
+    <dt>Meals / rooms</dt><dd>{{ req.meal_plan|default:"—" }} · {{ req.room_layout|default:"—" }}</dd><dt>Guide language</dt><dd>{{ req.guide_language|default:"—" }}</dd>
+    <dt>Budget</dt><dd>{{ req.total_budget|default:"—" }}</dd><dt>Message</dt><dd>{{ req.message|default:"—"|linebreaksbr }}</dd>
+  </dl></div></div>
+  <div class="stack">
+    <div class="admin-card"><div class="admin-card-header"><h3>Status</h3></div><div class="admin-card-body">
+      <form method="post" action="{% url 'dashboard:request_action' req.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="status">
+        <select name="status" class="admin-input">{% for v, l in statuses %}<option value="{{ v }}"{% if v == req.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select><button class="admin-btn admin-btn--primary">Update</button></form>
+    </div></div>
+    <div class="admin-card"><div class="admin-card-header"><h3>Quotations</h3></div><div class="admin-card-body">
+      {% for q in quotations %}<div style="font-size:.8rem;padding:.3rem 0"><a class="admin-link" href="{% url 'dashboard:quotation_detail' q.pk %}">{{ q.quote_ref }}</a> · {{ q.grand_total|money }} {% status_badge q.status %}</div>
+      {% empty %}<p class="muted">None yet.</p>{% endfor %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}

@@ -1,58 +1,76 @@
 {% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ page_title|default:"Admin" }} — {{ SITE_NAME }}{% endblock %}
 {% block body %}
-<div x-data="{ navOpen: false }" class="flex w-full min-h-screen">
-  <!-- Mobile top bar -->
-  <div class="md:hidden fixed top-0 inset-x-0 z-30 bg-ink text-white flex items-center justify-between px-4 py-3">
-    <span class="font-display text-lg tracking-wide">SZV <span class="text-gold">Admin</span></span>
-    <button @click="navOpen = !navOpen" class="p-2" aria-label="Toggle menu">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-      </svg>
-    </button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<aside class="admin-sidebar" id="adminSidebar" aria-label="Main navigation">
+  <div class="admin-logo">
+    <a href="{% url 'dashboard:home' %}" class="admin-logo-left">
+      <span><span class="admin-logo-mark">{{ SITE_NAME }}</span><span class="admin-logo-sub">Operations console</span></span>
+    </a>
+    <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">{% icon 'close' 16 %}</button>
   </div>
-
-  <!-- Sidebar -->
-  <aside
-    class="bg-ink text-gray-200 w-64 flex-shrink-0 fixed md:sticky top-0 h-screen overflow-y-auto z-40 transition-transform duration-200 pt-16 md:pt-0"
-    :class="navOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
-  >
-    <div class="hidden md:block px-5 py-5 border-b border-white/10">
-      <span class="font-display text-xl tracking-wide">SZV <span class="text-gold">Admin</span></span>
+  <nav class="admin-nav">
+    {% for g in nav_groups %}
+    {% if g.items|length > 1 or g.label != 'Dashboard' %}
+    <button type="button" class="admin-nav-group" data-group="{{ g.key }}" aria-expanded="true">
+      <span>{{ g.label }}</span><span class="admin-nav-group-chevron">{% icon 'chevron-down' 12 %}</span>
+    </button>
+    {% endif %}
+    <div class="admin-nav-items" data-group-items="{{ g.key }}"{% if g.has_active or g.label == 'Dashboard' %} data-has-active="1"{% endif %}>
+      {% for l in g.items %}
+      <a href="{{ l.url }}" class="admin-nav-link{% if l.active %} active{% endif %}"{% if l.active %} aria-current="page"{% endif %}>
+        <span class="admin-nav-icon">{% icon l.icon 17 %}</span> {{ l.label }}
+        {% if l.badge %}<span class="nav-badge">{{ l.badge }}</span>{% endif %}
+      </a>
+      {% endfor %}
     </div>
-    <nav class="px-3 py-4 space-y-1 text-sm">
-      {% url 'dashboard:home' as u_home %}
-      {% url 'dashboard:package_list' as u_packages %}
-      {% url 'dashboard:booking_list' as u_bookings %}
-      {% url 'dashboard:quotation_list' as u_quotations %}
-      {% url 'dashboard:lead_list' as u_leads %}
-      {% url 'dashboard:commission_list' as u_commissions %}
-      <a href="{{ u_home }}" class="block px-3 py-2 rounded hover:bg-white/10 {% if request.path == u_home %}bg-gold/20 text-gold{% endif %}">Dashboard</a>
-      <a href="{{ u_bookings }}" class="block px-3 py-2 rounded hover:bg-white/10 {% if u_bookings in request.path %}bg-gold/20 text-gold{% endif %}">Bookings</a>
-      <a href="{{ u_quotations }}" class="block px-3 py-2 rounded hover:bg-white/10 {% if u_quotations in request.path %}bg-gold/20 text-gold{% endif %}">Quotations</a>
-      <a href="{{ u_leads }}" class="block px-3 py-2 rounded hover:bg-white/10 {% if u_leads in request.path %}bg-gold/20 text-gold{% endif %}">Leads</a>
-      <a href="{{ u_commissions }}" class="block px-3 py-2 rounded hover:bg-white/10 {% if u_commissions in request.path %}bg-gold/20 text-gold{% endif %}">Commissions</a>
-      <a href="{{ u_packages }}" class="block px-3 py-2 rounded hover:bg-white/10 {% if u_packages in request.path %}bg-gold/20 text-gold{% endif %}">Packages</a>
-      <div class="pt-4 mt-4 border-t border-white/10">
-        <a href="{% url 'accounts:profile' %}" class="block px-3 py-2 rounded hover:bg-white/10">Profile</a>
-        <a href="{% url 'accounts:logout' %}" class="block px-3 py-2 rounded hover:bg-white/10 text-red-300">Sign Out</a>
+    {% endfor %}
+  </nav>
+  <div class="admin-sidebar-footer">
+    <div class="sidebar-user">
+      <a href="{% url 'accounts:profile' %}" class="admin-profile-link"><span class="avatar avatar--sm">{{ request.user|initials }}</span></a>
+      <a href="{% url 'accounts:profile' %}" class="who" style="text-decoration:none"><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><span>{{ request.user.get_role_display }}</span></a>
+      <form method="post" action="{% url 'accounts:logout' %}" style="margin:0">{% csrf_token %}
+        <button type="submit" class="admin-signout-btn" title="Sign out" aria-label="Sign out">{% icon 'logout' 16 %}</button>
+      </form>
+    </div>
+  </div>
+</aside>
+
+<main class="admin-main" id="main-content">
+  <header class="admin-topbar">
+    <div class="admin-topbar-left">
+      <button class="admin-hamburger" id="adminHamburger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+      <div style="min-width:0">
+        <div class="crumb">{% for g in nav_groups %}{% if g.has_active %}{{ g.label }}{% endif %}{% empty %}Account{% endfor %}</div>
+        <h1 class="admin-page-title">{{ page_title }}</h1>
       </div>
-    </nav>
-  </aside>
-
-  <!-- Backdrop on mobile when nav open -->
-  <div x-show="navOpen" x-cloak @click="navOpen = false" class="fixed inset-0 bg-black/50 z-30 md:hidden"></div>
-
-  <!-- Main content -->
-  <main class="flex-1 min-w-0 pt-16 md:pt-0 p-4 md:p-8">
-    <div class="max-w-6xl mx-auto">
-      {% if messages %}
-        {% for message in messages %}
-          <div class="mb-4 px-4 py-2 rounded bg-amber-50 text-amber-800 text-sm border border-amber-200">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-      {% block content %}{% endblock %}
     </div>
-  </main>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+    <div class="admin-topbar-right">
+      <span class="date-chip">{% now "l, j F Y" %}</span>
+      <a href="{% url 'dashboard:quotation_new' %}" class="admin-btn admin-btn--primary topbar-quick">{% icon 'plus' 14 %} New quote</a>
+      {% include "partials/theme_toggle.html" %}
+      <div class="admin-notif" id="adminNotif">
+        <button type="button" class="admin-icon-btn admin-notif-toggle" id="notifToggle" aria-label="Notifications" aria-expanded="false">
+          {% icon 'bell' 18 %}
+          {% if notif_total %}<span class="admin-notif-badge">{% if notif_total > 99 %}99+{% else %}{{ notif_total }}{% endif %}</span>{% endif %}
+        </button>
+        <div class="admin-notif-panel" id="notifPanel">
+          <div class="admin-notif-panel-header">Notifications</div>
+          {% for g in notif_groups %}
+          <div class="admin-notif-group">
+            <a href="{{ g.url }}" class="admin-notif-group-title">{{ g.label }} · {{ g.count }}</a>
+            {% for name, sub in g.rows %}<a href="{{ g.url }}" class="admin-notif-item"><strong>{{ name }}</strong>{% if sub %}<span>{{ sub|truncatechars:60 }}</span>{% endif %}</a>{% endfor %}
+          </div>
+          {% empty %}<div class="admin-notif-empty">You're all caught up ✨</div>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="admin-content">
+    {% include "partials/messages.html" %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
 {% endblock %}

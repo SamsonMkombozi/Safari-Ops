@@ -1,0 +1,6 @@
+{% load ui %}
+<div style="display:flex;align-items:flex-end;gap:4px;height:170px;padding-top:.5rem">
+  {% for p in series %}<div class="chart-col" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%" title="{{ p.label }}: {% if is_money %}{{ p.value|money }}{% else %}{{ p.value }}{% endif %}">
+    <div style="width:100%;background:var(--gold);height:{{ p.pct }}%;min-height:{% if p.value %}2px{% else %}0{% endif %}"></div>
+    <div class="muted" style="font-size:.58rem;margin-top:.25rem;white-space:nowrap">{{ p.label }}</div></div>{% endfor %}
+</div>

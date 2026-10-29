@@ -9,7 +9,7 @@ class UserAdmin(DjangoUserAdmin):
     list_display = ('username', 'email', 'role', 'is_staff_role_display', 'is_active', 'last_login')
     list_filter = ('role', 'is_active', 'is_staff')
     fieldsets = DjangoUserAdmin.fieldsets + (
-        ('Safari Zangu role', {'fields': ('role', 'phone', 'bio', 'avatar')}),
+        ('Role & permissions', {'fields': ('role', 'phone', 'bio', 'avatar')}),
         ('Lockout', {'fields': ('failed_login_attempts', 'locked_until')}),
     )
 

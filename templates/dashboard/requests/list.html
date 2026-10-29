@@ -1,0 +1,21 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-filter-pills" style="margin-bottom:1rem">
+  <a href="{% qs_replace status='' %}" class="admin-filter-pill admin-filter-pill--dark{% if not status_filter %} active{% endif %}">All</a>
+  {% for v, l in statuses %}<a href="{% qs_replace status=v %}" class="admin-filter-pill{% if status_filter == v %} active{% endif %}">{{ l }} ({{ counts|get_attr:v|default:0 }})</a>{% endfor %}
+</div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Received</th><th>Name</th><th>Country</th><th>Travelers</th><th>Start</th><th>Days</th><th>Budget</th><th>Destinations</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in page_obj %}
+  <tr onclick="location='{% url 'dashboard:request_detail' r.pk %}'" style="cursor:pointer">
+    <td class="nowrap">{{ r.created_at|date:"d M Y" }}</td><td><strong>{{ r.full_name }}</strong><div class="muted">{{ r.email }}</div></td><td>{{ r.country|default:"—" }}</td>
+    <td>{{ r.adults|default:0 }}A {{ r.children|default:0 }}C</td><td class="nowrap">{{ r.start_date|date:"d M Y"|default:"—" }}</td><td>{{ r.duration_days|default:"—" }}</td>
+    <td>{{ r.total_budget|default:"—" }}</td><td style="font-size:.75rem">{{ r.destinations|truncatechars:40|default:"—" }}</td><td>{% status_badge r.status r.get_status_display %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="9" class="admin-empty">No requests.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

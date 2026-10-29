@@ -3,67 +3,32 @@ One-time import from the legacy PHP app's MySQL database (the 'legacy'
 connection alias — see config/settings/base.py and apps/core/db_routers)
 into this project's own Django-native schema.
 
-Deliberately NOT attempted: migrating password hashes. The legacy app
-hashes with PHP's password_hash() (bcrypt, '$2y$' variant marker);
-Django's hasher expects its own 'bcrypt$2b$...' wrapper, and blindly
-re-wrapping a '$2y$' hash as though it verifies identically is exactly
-the kind of silent-failure shortcut that leaves an account looking
-migrated while actually being unable to log in (or, worse, looking like
-it verifies when it doesn't). Every imported staff/agent account is
-created with an unusable password instead, and must go through a normal
-password-reset before first login. Run with --report-only first to see
-counts before writing anything.
+Password hashes ARE migrated: the legacy app's PHP password_hash()
+bcrypt ('$2y$') hashes are wrapped for Django's BCryptPasswordHasher
+(see apps.core.legacy.legacy_password — verified against a real
+PHP-generated hash), so users keep their passwords and Django upgrades
+each one to PBKDF2 on first login. Anything that isn't a bcrypt hash gets
+an unusable password and must use "Forgot your password?".
+Run with --dry-run first to see counts before writing anything.
 
 Usage:
     python manage.py import_legacy_data --dry-run   # count rows, write nothing
     python manage.py import_legacy_data              # actually import
 """
-import json
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import connections, transaction
+from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.bookings.models import Booking, BookingReminder, Quotation
+from apps.bookings import pricing
+from apps.bookings.models import Booking, BookingReminder, Payment, Quotation
 from apps.content.models import ContactMessage, CustomSafariRequest, EmailTemplate, TeamMember
+from apps.core import legacy
+from apps.core.legacy import dec, jsonval, rows
 from apps.crm.models import AgentTarget, Commission, Customer, Lead
 from apps.packages.models import Accommodation, Activity, Itinerary, Package, ParkFee, SeasonalRate, Vehicle
-
-ROLE_MAP = {'superadmin': 'owner', 'admin': 'admin', 'staff': 'manager', 'agent': 'agent'}
-
-
-def rows(table, columns='*'):
-    with connections['legacy'].cursor() as cur:
-        cur.execute(f'SELECT {columns} FROM `{table}`')
-        cols = [c[0] for c in cur.description]
-        for row in cur.fetchall():
-            yield dict(zip(cols, row))
-
-
-def jsonval(value, default):
-    """
-    PyMySQL's raw cursor (used by rows() above) does NOT auto-decode
-    MySQL's native JSON column type the way the ORM's own query path
-    does — it comes back as a plain JSON-text string. Handing that
-    string straight to a Django JSONField double-encodes it (the field
-    ends up storing a JSON string *containing* JSON text, not the
-    decoded list/dict) — exactly the kind of bug that only shows up
-    once something tries to iterate the "list" and finds characters
-    instead of dicts. Every legacy JSON column goes through this.
-    """
-    if value is None:
-        return default
-    if isinstance(value, (list, dict)):
-        return value
-    try:
-        return json.loads(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def dec(value, default='0'):
-    return Decimal(str(value)) if value is not None else Decimal(default)
 
 
 class Command(BaseCommand):
@@ -81,20 +46,23 @@ class Command(BaseCommand):
             user_by_legacy_id = self._import_users()
             itin_by_legacy_id, pkg_by_legacy_id = self._import_catalog()
             customer_by_email = self._import_customers()
-            self._import_leads(user_by_legacy_id, customer_by_email)
-            self._import_commissions(user_by_legacy_id)
+            lead_by_legacy_id = self._import_leads(user_by_legacy_id, customer_by_email)
+            self._import_commissions(user_by_legacy_id, lead_by_legacy_id)
             self._import_agent_targets(user_by_legacy_id)
-            quote_by_legacy_id = self._import_quotations(customer_by_email, pkg_by_legacy_id, itin_by_legacy_id)
+            request_by_legacy_id = self._import_custom_safari_requests(customer_by_email, user_by_legacy_id)
+            quote_by_legacy_id = self._import_quotations(customer_by_email, pkg_by_legacy_id, itin_by_legacy_id,
+                                                         user_by_legacy_id, lead_by_legacy_id, request_by_legacy_id)
             self._import_bookings(customer_by_email, quote_by_legacy_id, pkg_by_legacy_id, itin_by_legacy_id)
             self._import_booking_reminders()
             self._import_team_members()
             self._import_contact_messages()
-            self._import_custom_safari_requests(customer_by_email)
             self._import_email_templates()
+            self.stdout.write(f'Settings: {legacy.import_settings()}, currencies: {legacy.import_currencies()}, '
+                              f'suppliers: {legacy.import_suppliers()}, staff: {legacy.import_staff()}, '
+                              f'reviews: {legacy.import_reviews()}, incidents: {legacy.import_incidents(user_by_legacy_id)}')
 
         self.stdout.write(self.style.WARNING(
-            '\nImported users have NO usable password — send each one through '
-            'the "forgot password" flow (or set one explicitly) before they can log in.'
+            '\nUsers keep their legacy passwords where the hash was bcrypt; any without one must use "Forgot your password?".'
         ))
         self.stdout.write(self.style.SUCCESS('Import complete.'))
 
@@ -103,7 +71,8 @@ class Command(BaseCommand):
             'admin_users', 'accommodations', 'vehicles', 'park_fees', 'activities', 'seasonal_rates',
             'itineraries', 'packages', 'customers', 'leads', 'commissions', 'agent_targets',
             'quotations', 'bookings', 'booking_reminders', 'team_members', 'contact_messages',
-            'custom_safari_requests', 'email_templates',
+            'custom_safari_requests', 'email_templates', 'settings', 'currency_rates', 'suppliers', 'staff',
+            'reviews', 'incidents',
         ]
         with connections['legacy'].cursor() as cur:
             for table in tables:
@@ -115,13 +84,10 @@ class Command(BaseCommand):
         mapping = {}
         count = 0
         for r in rows('admin_users'):
-            user = User.objects.create(
-                username=r['username'], email=r.get('email') or '', first_name=(r.get('full_name') or '')[:150],
-                role=ROLE_MAP.get(r.get('role'), 'agent'), phone=r.get('phone') or '', bio=r.get('bio') or '',
-                is_active=bool(r.get('is_active', 1)), is_staff=ROLE_MAP.get(r.get('role')) in ('owner', 'admin', 'manager'),
-            )
+            user = User(username=r['username'])
             user.set_unusable_password()
-            user.save(update_fields=['password'])
+            legacy.apply_user_fields(user, r)
+            user.save()
             mapping[r['id']] = user
             count += 1
         self.stdout.write(f'Users: {count}')
@@ -232,10 +198,11 @@ class Command(BaseCommand):
         return mapping
 
     def _import_leads(self, user_by_legacy_id, customer_by_email):
+        mapping = {}
         n = 0
         for r in rows('leads'):
             customer = customer_by_email.get((r.get('email') or '').strip().lower())
-            Lead.objects.create(
+            mapping[r['id']] = Lead.objects.create(
                 full_name=r['full_name'], email=r['email'], phone=r.get('phone') or '', country=r.get('country') or '',
                 source=r.get('source') or 'website', pipeline_stage=r.get('pipeline_stage') or 'lead',
                 budget_range=r.get('budget_range') or '', travel_date=r.get('travel_date'),
@@ -250,15 +217,17 @@ class Command(BaseCommand):
             )
             n += 1
         self.stdout.write(f'Leads: {n}')
+        return mapping
 
-    def _import_commissions(self, user_by_legacy_id):
+    def _import_commissions(self, user_by_legacy_id, lead_by_legacy_id):
         n = 0
         for r in rows('commissions'):
             agent = user_by_legacy_id.get(r['agent_id'])
             if not agent:
                 continue  # orphaned row with no matching agent — skip rather than crash the whole import
             Commission.objects.create(
-                agent=agent, booking_ref=r.get('booking_ref') or '', client_name=r.get('client_name') or '',
+                agent=agent, lead=lead_by_legacy_id.get(r.get('lead_id')),
+                booking_ref=r.get('booking_ref') or '', client_name=r.get('client_name') or '',
                 package_name=r.get('package_name') or '', booking_value=dec(r.get('booking_value')),
                 commission_rate=dec(r.get('commission_rate'), '10'), commission_amount=dec(r.get('commission_amount')),
                 status=r.get('status') or 'pending', travel_date=r.get('travel_date'), notes=r.get('notes') or '',
@@ -284,7 +253,8 @@ class Command(BaseCommand):
         self.stdout.write(f'Agent targets: {n}')
 
     # ── Bookings & Quotations ──────────────────────────────────
-    def _import_quotations(self, customer_by_email, pkg_by_legacy_id, itin_by_legacy_id):
+    def _import_quotations(self, customer_by_email, pkg_by_legacy_id, itin_by_legacy_id,
+                           user_by_legacy_id, lead_by_legacy_id, request_by_legacy_id):
         mapping = {}
         n = 0
         for r in rows('quotations'):
@@ -310,7 +280,13 @@ class Command(BaseCommand):
                 currency=r.get('currency') or 'USD', status=r.get('status') or 'draft', valid_until=r.get('valid_until'),
                 booking_ref=r.get('booking_ref') or '', notes=r.get('notes') or '', admin_notes=r.get('admin_notes') or '',
                 sent_at=r.get('sent_at'), accepted_at=r.get('accepted_at'),
+                created_by=user_by_legacy_id.get(r.get('created_by')), lead=lead_by_legacy_id.get(r.get('lead_id')),
+                custom_request=request_by_legacy_id.get(r.get('custom_request_id')), markup_pct=dec(r.get('markup_pct')),
+                view_count=r.get('view_count') or 0, first_viewed_at=r.get('first_viewed_at'), last_viewed_at=r.get('last_viewed_at'),
             )
+            token = r.get('public_token') or ''
+            if len(token) == 48:  # keep already-emailed client links working
+                Quotation.objects.filter(pk=quote.pk).update(public_token=token)
             mapping[r['id']] = quote
             n += 1
         self.stdout.write(f'Quotations: {n}')
@@ -324,7 +300,10 @@ class Command(BaseCommand):
             booking = Booking.objects.create(
                 booking_ref=r['booking_ref'], quotation=quote, customer=customer,
                 package=pkg_by_legacy_id.get(r.get('package_id')), itinerary=itin_by_legacy_id.get(r.get('itinerary_id')),
-                full_name=r['full_name'], email=r['email'], phone=r['phone'], travelers=r.get('travelers') or 1,
+                full_name=r['full_name'], email=r['email'], phone=r['phone'], country=r.get('country') or '',
+                rooms=r.get('rooms') or 1, airport_pickup=bool(r.get('airport_pickup')), trip_extension=r.get('trip_extension') or '',
+                supplier_cost=dec(pricing.supplier_cost(quote.line_items)) if quote else Decimal('0'),
+                travelers=r.get('travelers') or 1,
                 adults=r.get('adults') or 1, children=r.get('children') or 0, package_name=r.get('package_name') or '',
                 accommodation_level=r.get('accommodation_level') or 'midrange', travel_date=r['travel_date'],
                 special_request=r.get('special_request') or '',
@@ -337,6 +316,17 @@ class Command(BaseCommand):
             )
             booking.set_tracking_password()  # legacy plaintext tracking passwords aren't recoverable from the DB either (also hashed there) — guests use "forgot tracking password" to get a fresh one
             booking.save(update_fields=['tracking_password_hash'])
+            if booking.amount_paid > 0:
+                # The legacy app kept only a running total; open the ledger with
+                # it so ledger sum == amount_paid from day one.
+                Payment.objects.create(
+                    booking=booking, amount=booking.amount_paid,
+                    kind='full' if booking.payment_status == 'fully_paid' else 'deposit',
+                    method={'paypal': 'paypal'}.get(booking.payment_method, 'bank_transfer'),
+                    reference=booking.paypal_order_id or 'legacy-import',
+                    received_at=(r.get('updated_at') or r.get('created_at') or timezone.now()).date(),
+                    notes='Opening balance imported from the legacy system.',
+                )
             n += 1
         self.stdout.write(f'Bookings: {n}')
 
@@ -371,15 +361,20 @@ class Command(BaseCommand):
             ContactMessage.objects.create(
                 full_name=r['full_name'], email=r['email'], phone=r.get('phone') or '',
                 subject=r.get('subject') or '', message=r['message'], is_read=bool(r.get('is_read')),
+                first_response_at=r.get('first_response_at'),
             )
             n += 1
         self.stdout.write(f'Contact messages: {n}')
 
-    def _import_custom_safari_requests(self, customer_by_email):
+    def _import_custom_safari_requests(self, customer_by_email, user_by_legacy_id):
+        mapping = {}
         n = 0
         for r in rows('custom_safari_requests'):
             customer = customer_by_email.get((r.get('email') or '').strip().lower())
-            CustomSafariRequest.objects.create(
+            mapping[r['id']] = CustomSafariRequest.objects.create(
+                rooms=r.get('rooms'), airport_pickup=bool(r.get('airport_pickup')),
+                submitted_by_agent=user_by_legacy_id.get(r.get('submitted_by_agent_id')),
+                first_response_at=r.get('first_response_at'),
                 customer=customer, full_name=r.get('full_name') or '', email=r.get('email') or '',
                 phone=r.get('phone') or '', country=r.get('country') or '', travelers=r.get('travelers') or '',
                 adults=r.get('adults'), children=r.get('children'), infants=r.get('infants'),
@@ -393,6 +388,7 @@ class Command(BaseCommand):
             )
             n += 1
         self.stdout.write(f'Custom safari requests: {n}')
+        return mapping
 
     def _import_email_templates(self):
         n = 0

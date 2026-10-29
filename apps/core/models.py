@@ -73,3 +73,28 @@ class APIKey(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+
+class SiteSetting(models.Model):
+    """Key/value business settings (deposit %, VAT, default commission rate, feature flags, bank details) — the legacy `settings` table. Read through apps.core.settings_store, which supplies the defaults."""
+    key = models.CharField(max_length=100, primary_key=True)
+    value = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.key
+
+
+class CurrencyRate(models.Model):
+    code = models.CharField(max_length=3, primary_key=True)
+    name = models.CharField(max_length=50)
+    symbol = models.CharField(max_length=5, blank=True)
+    rate_to_usd = models.DecimalField(max_digits=12, decimal_places=6, default=1, help_text='Units of this currency per 1 USD.')
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['code']
+
+    def __str__(self):
+        return self.code

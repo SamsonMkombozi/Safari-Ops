@@ -1,0 +1,14 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-card" style="max-width:980px">
+  <div class="admin-card-header"><h3>New quotation{% if lead %} for lead {{ lead.full_name }}{% elif req %} from request by {{ req.full_name }}{% endif %}</h3><a href="{% url 'dashboard:quotation_list' %}" class="admin-btn admin-btn--outline">← Quotations</a></div>
+  <div class="admin-card-body">
+    <p class="muted" style="margin-bottom:1rem;font-size:.8rem">The itinerary is priced line-by-line (accommodation occupancy, vehicle days, park entries with child/resident rates, paid activities, meals, service charge) then markup → discount → VAT → deposit, using the rates currently in the catalog.</p>
+    <form method="post">{% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <button class="admin-btn admin-btn--primary" style="margin-top:1rem">{% icon 'quotations' 13 %} Price &amp; create quotation</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-filter-pills" style="margin-bottom:1rem">
+  <a href="?status=" class="admin-filter-pill{% if not status_filter %} active{% endif %}">All</a>
+  {% for v, l in statuses %}<a href="?status={{ v }}" class="admin-filter-pill{% if status_filter == v %} active{% endif %}">{{ l }}</a>{% endfor %}
+</div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Send at</th><th>Booking</th><th>Type</th><th>Subject</th><th>Status</th><th></th></tr></thead>
+  <tbody>{% for r in page_obj %}
+  <tr{% if r.status == 'pending' and r.send_at <= now %} class="highlighted-row"{% endif %}>
+    <td class="nowrap">{{ r.send_at|date:"d M Y H:i" }}</td><td>{% if r.booking %}<a class="admin-link ref-code" href="{% url 'dashboard:booking_detail' r.booking.pk %}">{{ r.booking_ref }}</a><div class="muted">{{ r.booking.full_name }}</div>{% else %}{{ r.booking_ref }}{% endif %}</td>
+    <td>{{ r.get_type_display }}</td><td>{{ r.subject|truncatechars:60 }}</td><td>{% status_badge r.status %}</td>
+    <td class="nowrap">{% if r.status == 'pending' %}
+      <form method="post" action="{% url 'dashboard:reminder_action' r.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="action" value="send"><button class="admin-btn admin-btn--outline" style="font-size:.65rem">Send now</button></form>
+      <form method="post" action="{% url 'dashboard:reminder_action' r.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="action" value="cancel"><button class="admin-btn admin-btn--muted" style="font-size:.65rem">Cancel</button></form>
+    {% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="admin-empty">No reminders.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

@@ -1,57 +1,40 @@
 {% extends "agent_portal/_base.html" %}
-{% block title %}My Dashboard — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
+{% block greeting %}Karibu, {{ request.user.first_name|default:request.user.username }} 👋{% endblock %}
 {% block content %}
-<h1 class="font-display text-2xl md:text-3xl mb-1">Welcome, {{ request.user.first_name|default:request.user.username }}</h1>
-<p class="text-gray-500 text-sm mb-6">Your pipeline and commissions at a glance.</p>
-
-<div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-8">
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">My leads</div>
-    <div class="text-2xl font-semibold mt-1">{{ stats.leads_total }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Active</div>
-    <div class="text-2xl font-semibold mt-1">{{ stats.leads_active }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Booked</div>
-    <div class="text-2xl font-semibold mt-1 text-green-700">{{ stats.leads_booked }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Commission pending</div>
-    <div class="text-2xl font-semibold mt-1">${{ stats.commission_pending|floatformat:0 }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Approved</div>
-    <div class="text-2xl font-semibold mt-1">${{ stats.commission_approved|floatformat:0 }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Paid (month)</div>
-    <div class="text-2xl font-semibold mt-1 text-green-700">${{ stats.commission_paid_this_month|floatformat:0 }}</div>
-  </div>
+<div class="admin-metrics-grid" style="margin-bottom:1.5rem">
+  <a href="{% url 'agent_portal:lead_list' %}" style="text-decoration:none"><div class="metric-card"><span class="metric-label">My Leads</span><span class="metric-value">{{ stats.leads_total }}</span><span class="metric-sub">{{ stats.leads_won }} booked · {{ stats.bookings }} bookings</span></div></a>
+  <div class="metric-card metric-card--dark"><span class="metric-label">Commission Paid</span><span class="metric-value">{{ stats.comm_paid|money }}</span><span class="metric-sub">Lifetime · you earn {{ stats.rate|floatformat:"-2" }}%</span></div>
+  <a href="{% url 'agent_portal:commission_list' %}" style="text-decoration:none"><div class="metric-card {% if stats.comm_pending %}metric-card--amber{% endif %}"><span class="metric-label">Commission Pending</span><span class="metric-value">{{ stats.comm_pending|money }}</span><span class="metric-sub">{{ stats.comm_approved|money }} approved, awaiting payout</span></div></a>
+  <div class="metric-card metric-card--green"><span class="metric-label">Sales this month</span><span class="metric-value">{{ stats.month_value|money }}</span>
+    {% if stats.target_pct is not None %}<div class="bar" style="margin-top:.35rem"><span style="width:{{ stats.target_pct }}%"></span></div><span class="metric-sub">{{ stats.target_pct }}% of {{ stats.target|money }} target</span>{% else %}<span class="metric-sub">{{ stats.sales_value|money }} lifetime</span>{% endif %}</div>
 </div>
-
-<div class="grid md:grid-cols-2 gap-6">
-  <div class="bg-white rounded-lg border border-gray-200">
-    <div class="px-4 py-3 border-b border-gray-100 font-medium">Recent Leads</div>
-    <div class="divide-y divide-gray-100">
-      {% for l in recent_leads %}
-      <a href="{% url 'agent_portal:lead_detail' l.pk %}" class="flex items-center justify-between px-4 py-3 text-sm hover:bg-gray-50">
-        <div class="font-medium">{{ l.full_name }}</div>
-        <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ l.get_pipeline_stage_display }}</span>
-      </a>
-      {% empty %}<div class="px-4 py-6 text-sm text-gray-400 text-center">No leads yet.</div>{% endfor %}
-    </div>
+<div class="admin-split-layout" style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;align-items:start">
+  <div class="admin-card">
+    <div class="admin-card-header"><h3>My Leads</h3><a href="{% url 'agent_portal:lead_list' %}" class="admin-btn admin-btn--outline" style="font-size:.65rem">View All →</a></div>
+    <div class="admin-table-wrap"><table class="admin-table">
+      <thead><tr><th>Name</th><th>Country</th><th>Stage</th><th>Added</th></tr></thead>
+      <tbody>{% for l in recent_leads %}
+      <tr onclick="location='{% url 'agent_portal:lead_detail' l.pk %}'" style="cursor:pointer"><td><div style="font-weight:600;font-size:.82rem">{{ l.full_name }}</div><div class="muted">{{ l.email }}</div></td>
+        <td style="font-size:.78rem">{{ l.country|default:"—" }}</td><td>{% status_badge l.pipeline_stage l.get_pipeline_stage_display %}</td><td class="muted">{{ l.created_at|date:"d M Y" }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="admin-empty">No leads yet — add your first one.</td></tr>{% endfor %}</tbody>
+    </table></div>
   </div>
-  <div class="bg-white rounded-lg border border-gray-200">
-    <div class="px-4 py-3 border-b border-gray-100 font-medium">Recent Commissions</div>
-    <div class="divide-y divide-gray-100">
-      {% for c in recent_commissions %}
-      <div class="flex items-center justify-between px-4 py-3 text-sm">
-        <div class="font-mono text-xs">{{ c.booking_ref|default:c.client_name }}</div>
-        <div class="font-medium">${{ c.commission_amount|floatformat:0 }}</div>
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>My Commissions</h3><a href="{% url 'agent_portal:commission_list' %}" class="admin-btn admin-btn--outline" style="font-size:.65rem">View All →</a></div>
+      <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Client</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody>{% for c in recent_commissions %}<tr><td style="font-size:.82rem;font-weight:600">{{ c.client_name }}</td><td style="font-weight:700">{{ c.commission_amount|money }}</td><td>{% status_badge c.status %}</td></tr>
+        {% empty %}<tr><td colspan="3" class="admin-empty">No commissions yet.</td></tr>{% endfor %}</tbody></table></div>
+    </div>
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Quick Actions</h3></div>
+      <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+        {% if direct_booking_enabled %}<a href="{% url 'agent_portal:direct_booking' %}" class="admin-btn admin-btn--primary" style="justify-content:center">+ Book a Package</a>{% endif %}
+        <a href="{% url 'agent_portal:custom_request' %}" class="admin-btn admin-btn--outline" style="justify-content:center">+ Custom Request</a>
+        <a href="{% url 'agent_portal:commission_list' %}" class="admin-btn admin-btn--outline" style="justify-content:center">Commissions</a>
+        <a href="{% url 'accounts:profile' %}" class="admin-btn admin-btn--muted" style="justify-content:center">Edit Profile</a>
       </div>
-      {% empty %}<div class="px-4 py-6 text-sm text-gray-400 text-center">No commissions yet.</div>{% endfor %}
     </div>
   </div>
 </div>

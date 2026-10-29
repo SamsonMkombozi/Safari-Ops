@@ -1,0 +1,14 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-filter-pills" style="margin-bottom:1rem"><a href="?" class="admin-filter-pill{% if not show %} active{% endif %}">All</a><a href="?show=unread" class="admin-filter-pill admin-filter-pill--amber{% if show == 'unread' %} active{% endif %}">Unread</a></div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th></th><th>Received</th><th>From</th><th>Subject</th><th>Message</th></tr></thead>
+  <tbody>{% for m in page_obj %}
+  <tr onclick="location='{% url 'dashboard:message_detail' m.pk %}'" style="cursor:pointer{% if not m.is_read %};font-weight:700{% endif %}">
+    <td>{% if not m.is_read %}<span class="status-dot status-dot--amber"></span>{% endif %}</td><td class="nowrap">{{ m.created_at|date:"d M Y H:i" }}</td>
+    <td>{{ m.full_name }}<div class="muted">{{ m.email }}</div></td><td>{{ m.subject|default:"(no subject)" }}</td><td class="muted">{{ m.message|truncatechars:80 }}</td></tr>
+  {% empty %}<tr><td colspan="5" class="admin-empty">No messages.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

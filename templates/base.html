@@ -1,27 +1,23 @@
-<!doctype html>
-<html lang="en">
+{% load static %}<!doctype html>
+{% with pref=request.user.theme_preference|default:"" %}
+<html lang="en"{% if pref and pref != 'system' %} data-theme="{{ pref }}"{% endif %} data-theme-pref="{{ pref|default:'anon' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: { ink: '#0a0a0a', gold: '#c8963e', 'gold-text': '#7a5a10' },
-          fontFamily: { display: ['Georgia', 'serif'] },
-        },
-      },
-    };
-  </script>
-  <style>
-    [x-cloak] { display: none !important; }
-    body { -webkit-font-smoothing: antialiased; }
-  </style>
+  {# Signed-in users: the server-side preference wins (it follows them across devices). Signed-out pages (login) fall back to this browser's last choice. #}
+  <script>(function(){var r=document.documentElement,p=r.getAttribute('data-theme-pref');try{if(p==='anon'){var t=localStorage.getItem('safariops-theme');if(t&&t!=='system')r.setAttribute('data-theme',t);}else{localStorage.setItem('safariops-theme',p);}}catch(e){}})();</script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23113a32'/%3E%3Ctext x='16' y='22' font-family='Arial,sans-serif' font-size='17' font-weight='700' fill='%23fff' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{% static 'css/ui.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col md:flex-row">
-  {% block body %}{% endblock %}
+<body class="{% block body_class %}admin-body{% endblock %}">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+{% block body %}{% endblock %}
+<script src="{% static 'js/admin.js' %}"></script>
+<script src="{% static 'js/admin-layout.js' %}"></script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>
+{% endwith %}

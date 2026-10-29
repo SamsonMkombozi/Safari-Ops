@@ -1,45 +1,37 @@
 {% extends "dashboard/_base.html" %}
-{% block title %}Bookings — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-  <h1 class="font-display text-2xl md:text-3xl">Bookings</h1>
-  <div class="flex gap-2 text-sm">
-    <a href="?" class="px-3 py-1.5 rounded-full border {% if not status_filter %}bg-ink text-white{% else %}border-gray-300 text-gray-600{% endif %}">All</a>
-    <a href="?status=pending" class="px-3 py-1.5 rounded-full border {% if status_filter == 'pending' %}bg-ink text-white{% else %}border-gray-300 text-gray-600{% endif %}">Pending</a>
-    <a href="?status=deposit_paid" class="px-3 py-1.5 rounded-full border {% if status_filter == 'deposit_paid' %}bg-ink text-white{% else %}border-gray-300 text-gray-600{% endif %}">Deposit</a>
-    <a href="?status=fully_paid" class="px-3 py-1.5 rounded-full border {% if status_filter == 'fully_paid' %}bg-ink text-white{% else %}border-gray-300 text-gray-600{% endif %}">Paid</a>
-  </div>
+<div class="admin-filter-pills" style="margin-bottom:1rem">
+  <a href="{% qs_replace status='' %}" class="admin-filter-pill admin-filter-pill--dark{% if not status_filter %} active{% endif %}">All ({{ total_count }})</a>
+  {% for v, l in statuses %}<a href="{% qs_replace status=v %}" class="admin-filter-pill{% if status_filter == v %} active{% endif %}">{{ l }} ({{ counts|get_attr:v|default:0 }})</a>{% endfor %}
 </div>
-<div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-  <table class="w-full text-sm min-w-[720px]">
-    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-      <tr>
-        <th class="text-left px-4 py-3">Ref</th>
-        <th class="text-left px-4 py-3">Guest</th>
-        <th class="text-left px-4 py-3">Package</th>
-        <th class="text-left px-4 py-3">Travel date</th>
-        <th class="text-left px-4 py-3">Total</th>
-        <th class="text-left px-4 py-3">Status</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-100">
-      {% for b in bookings %}
-      <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{% url "dashboard:booking_detail" b.pk %}'">
-        <td class="px-4 py-3 font-mono text-xs">{{ b.booking_ref }}</td>
-        <td class="px-4 py-3">{{ b.full_name }}</td>
-        <td class="px-4 py-3">{{ b.package_name }}</td>
-        <td class="px-4 py-3">{{ b.travel_date }}</td>
-        <td class="px-4 py-3">{% if b.total_amount %}${{ b.total_amount|floatformat:0 }}{% else %}—{% endif %}</td>
-        <td class="px-4 py-3">
-          <span class="text-xs px-2 py-1 rounded-full
-            {% if b.payment_status == 'fully_paid' %}bg-green-100 text-green-700
-            {% elif b.payment_status == 'deposit_paid' %}bg-blue-100 text-blue-700
-            {% elif b.payment_status == 'cancelled' %}bg-red-100 text-red-700
-            {% else %}bg-amber-100 text-amber-700{% endif %}">{{ b.get_payment_status_display }}</span>
-        </td>
-      </tr>
-      {% empty %}<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">No bookings found.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+<div class="toolbar">
+  <form method="get">
+    <input type="hidden" name="status" value="{{ status_filter }}">
+    <input type="search" name="q" value="{{ q }}" class="admin-input" placeholder="Ref, guest, email, package…">
+    <select name="when" class="admin-input" onchange="this.form.submit()" style="max-width:160px">
+      <option value="">Any travel date</option><option value="upcoming"{% if when == 'upcoming' %} selected{% endif %}>Upcoming</option><option value="past"{% if when == 'past' %} selected{% endif %}>Past</option>
+    </select>
+    <button class="admin-btn admin-btn--outline">{% icon 'search' 13 %} Search</button>
+  </form>
+  <a href="{% url 'dashboard:quotation_new' %}" class="admin-btn admin-btn--primary">{% icon 'plus' 13 %} New quotation</a>
 </div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Ref</th><th>Guest</th><th>Package</th><th>Travel</th><th>Pax</th><th class="num">Total</th><th class="num">Paid</th><th class="num">Balance</th><th>Agent</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for b in page_obj %}
+  <tr>
+    <td><a class="admin-link ref-code" href="{% url 'dashboard:booking_detail' b.pk %}">{{ b.booking_ref }}</a><div class="muted">{{ b.created_at|date:"d M Y" }}</div></td>
+    <td><strong>{{ b.full_name }}</strong><div class="muted">{{ b.email }}</div></td>
+    <td style="font-size:.78rem">{{ b.package_name|default:"—" }}</td>
+    <td class="nowrap">{{ b.travel_date|date:"d M Y" }}</td>
+    <td>{{ b.travelers }}</td>
+    <td class="num">{{ b.total_amount|money }}</td><td class="num">{{ b.amount_paid|money }}</td><td class="num">{{ b.balance_due|money }}</td>
+    <td style="font-size:.75rem">{{ b.agent.get_full_name|default:"—" }}</td>
+    <td>{% status_badge b.payment_status b.get_payment_status_display %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="10" class="admin-empty">No bookings match.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% include "partials/pagination.html" %}
 {% endblock %}

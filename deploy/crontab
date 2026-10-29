@@ -1,0 +1,12 @@
+# crontab -u www-data deploy/crontab   (paths assume /var/www/safariops)
+SHELL=/bin/bash
+DJANGO_SETTINGS_MODULE=config.settings.production
+APP=/var/www/safariops
+# Send queued emails every 2 minutes
+*/2 * * * * cd $APP && venv/bin/python manage.py process_email_queue >> logs/cron.log 2>&1
+# Due booking reminders + expire stale quotations, every 15 minutes
+*/15 * * * * cd $APP && venv/bin/python manage.py process_reminders >> logs/cron.log 2>&1
+# Nightly: drop expired sessions and blacklisted JWTs
+30 2 * * * cd $APP && venv/bin/python manage.py clearsessions && venv/bin/python manage.py flushexpiredtokens >> logs/cron.log 2>&1
+# Nightly database backup (keep 14 days)
+0 3 * * * mysqldump --single-transaction safariops | gzip > $APP/backups/safariops-$(date +\%F).sql.gz && find $APP/backups -name '*.sql.gz' -mtime +14 -delete

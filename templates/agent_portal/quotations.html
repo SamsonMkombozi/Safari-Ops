@@ -1,0 +1,10 @@
+{% extends "agent_portal/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Ref</th><th>Client</th><th>Package</th><th>Start</th><th class="num">Total</th><th>Status</th></tr></thead>
+  <tbody>{% for q in quotations %}<tr><td><span class="ref-code">{{ q.quote_ref }}</span><div class="muted">{{ q.created_at|date:"d M Y" }}</div></td><td><strong>{{ q.client_name }}</strong></td><td>{{ q.package_name }}</td>
+    <td>{{ q.start_date|date:"d M Y"|default:"—" }}</td><td class="num">{{ q.grand_total|money }}</td><td>{% status_badge q.status q.get_status_display %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="admin-empty">No quotations yet.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

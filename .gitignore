@@ -8,3 +8,7 @@ logs/
 db.sqlite3
 *.log
 .DS_Store
+backups/
+media/private/
+.env.*
+!.env.example

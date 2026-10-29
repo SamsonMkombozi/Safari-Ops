@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Quotation {{ quote.quote_ref }} — {{ SITE_NAME }}{% endblock %}
+{% block body_class %}agent-body{% endblock %}
+{% block body %}
+<div class="agent-hero">
+  <header class="agent-navbar">
+    <span class="agent-brand"><span><span class="agent-brand-mark">{{ SITE_NAME }}</span><span class="agent-brand-sub">Your safari quotation</span></span></span>
+    <div class="agent-navbar-right">{% include "partials/theme_toggle.html" with extra_class=" agent-theme-btn" %}</div>
+  </header>
+  <div class="agent-hero-inner">
+    <div class="agent-greeting">Prepared for {{ quote.client_name }} · {{ quote.quote_ref }}</div>
+    <h1 class="agent-page-title">{{ quote.package_name }}</h1>
+  </div>
+</div>
+<main id="main-content" class="agent-content">
+  {% if accepted or quote.status == 'accepted' %}<div class="admin-alert admin-alert--success">Thank you — you've accepted this quotation. Our team will be in touch shortly to confirm your booking and deposit.</div>
+  {% elif quote.status == 'converted' %}<div class="admin-alert admin-alert--success">This quotation is confirmed as booking {{ quote.booking_ref }}.</div>
+  {% elif expired %}<div class="admin-alert admin-alert--error">This quotation has expired — reply to us and we'll gladly refresh the prices.</div>{% endif %}
+  <div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+    <div class="metric-card metric-card--dark"><span class="metric-label">Total</span><span class="metric-value">{{ quote.grand_total|money:2 }}</span><span class="metric-sub">{{ quote.per_person|money:2 }} per person</span></div>
+    <div class="metric-card"><span class="metric-label">Deposit to confirm</span><span class="metric-value">{{ quote.deposit_amount|money:2 }}</span><span class="metric-sub">balance {{ quote.balance_due|money:2 }}</span></div>
+    <div class="metric-card metric-card--green"><span class="metric-label">Your trip</span><span class="metric-value" style="font-size:1.2rem">{{ quote.duration_days }} days</span><span class="metric-sub">{{ quote.adults }} adult{{ quote.adults|pluralize }}{% if quote.children %}, {{ quote.children }} child{{ quote.children|pluralize:"ren" }}{% endif %} · from {{ quote.start_date|date:"j M Y"|default:"date TBC" }}</span></div>
+  </div>
+  <div class="split">
+    <div class="admin-card"><div class="admin-card-header"><h3>What's included in the price</h3></div><div class="admin-table-wrap"><table class="admin-table">
+      <thead><tr><th>Item</th><th>Quantity</th><th class="num">Amount</th></tr></thead>
+      <tbody>{% for li in quote.line_items %}<tr><td>{{ li.description }}</td><td class="muted">{{ li.quantity_str }}</td><td class="num">{{ li.amount|money:2 }}</td></tr>{% endfor %}</tbody>
+      <tfoot>
+        {% if quote.markup_amount %}<tr><td colspan="2" class="num">Planning &amp; operations</td><td class="num">{{ quote.markup_amount|money:2 }}</td></tr>{% endif %}
+        {% if quote.discount_amount %}<tr><td colspan="2" class="num">Discount</td><td class="num">−{{ quote.discount_amount|money:2 }}</td></tr>{% endif %}
+        <tr><td colspan="2" class="num">VAT</td><td class="num">{{ quote.vat|money:2 }}</td></tr>
+        <tr><td colspan="2" class="num"><strong>Total</strong></td><td class="num"><strong>{{ quote.grand_total|money:2 }}</strong></td></tr>
+      </tfoot></table></div></div>
+    <div class="stack">
+      {% if can_accept %}
+      <div class="admin-card"><div class="admin-card-body">
+        <h3 style="font-size:1.05rem;margin-bottom:.35rem">Ready to go?</h3>
+        <p class="muted" style="margin-bottom:1rem">Valid until {{ quote.valid_until|date:"j F Y" }}. Accepting lets our team reserve your lodges and send deposit details.</p>
+        <form method="post" action="accept/">{% csrf_token %}<button class="admin-btn admin-btn--primary" style="width:100%;justify-content:center">Accept quotation</button></form>
+      </div></div>
+      {% endif %}
+      <div class="admin-card"><div class="admin-card-header"><h3>Trip details</h3></div><div class="admin-card-body"><dl class="kv">
+        <dt>Destinations</dt><dd>{{ quote.destinations|join:", "|default:"—" }}</dd>
+        <dt>Standard</dt><dd>{{ quote.get_accommodation_level_display }}</dd>
+        {% if quote.notes %}<dt>Notes</dt><dd>{{ quote.notes|linebreaksbr }}</dd>{% endif %}
+      </dl></div></div>
+      <div class="admin-card"><div class="admin-card-header"><h3>Questions?</h3></div><div class="admin-card-body" style="font-size:.86rem">
+        Email <strong>{{ contact_email }}</strong>{% if whatsapp %} or WhatsApp <strong>+{{ whatsapp }}</strong>{% endif %} and quote <span class="ref-code">{{ quote.quote_ref }}</span>.
+        {% if bank.bank_account_no %}<p class="muted" style="margin-top:.75rem">Deposit by bank transfer: {{ bank.bank_name }} · {{ bank.bank_account_name }} · {{ bank.bank_account_no }} · SWIFT {{ bank.bank_swift }}</p>{% endif %}
+      </div></div>
+    </div>
+  </div>
+</main>
+{% endblock %}

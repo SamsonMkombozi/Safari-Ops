@@ -32,6 +32,9 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
+    # Required by SIMPLE_JWT['BLACKLIST_AFTER_ROTATION'] below — without
+    # it rotated refresh tokens are never actually revoked.
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
 ]
 
@@ -45,6 +48,7 @@ LOCAL_APPS = [
     'apps.api',
     'apps.dashboard',
     'apps.agent_portal',
+    'apps.operations',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -79,6 +83,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.core.context_processors.site_meta',
+                'apps.dashboard.nav.admin_nav',
             ],
         },
     },
@@ -128,7 +133,41 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-LOGIN_URL = '/dashboard/login/'
+LOGIN_URL = '/accounts/login/'
+
+# PBKDF2 for every new/changed password; bcrypt kept so passwords migrated
+# from the legacy PHP app ('$2y$' hashes) still verify — Django re-hashes
+# each one to PBKDF2 automatically on that user's next successful login.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.BCryptPasswordHasher',
+]
+
+# Cache backs the settings store, login/tracking lockouts and throttles.
+# LocMem is per-process: fine for one worker; set CACHE_URL (e.g.
+# dbcache://django_cache — run `createcachetable` — or rediscache://host:6379/1)
+# when running several gunicorn workers so lockouts are shared.
+CACHES = {'default': env.cache('CACHE_URL', default='locmemcache://')}
+
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
+# App-specific cookie names. Browsers share cookies across every PORT of a
+# host, so on a server running several apps (IP:8200, IP:8300, IP:8600 …)
+# Django's default 'csrftoken'/'sessionid' collide: another app's Secure
+# 'csrftoken' even blocks this app from setting its own over HTTP, which
+# made every login fail with "CSRF cookie not set".
+SESSION_COOKIE_NAME = env('SESSION_COOKIE_NAME', default='safariops_sessionid')
+CSRF_COOKIE_NAME = env('CSRF_COOKIE_NAME', default='safariops_csrftoken')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Safari-Ops <no-reply@localhost>')
+SERVER_EMAIL = env('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
+
+# Uploads (supplier contracts, team photos)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
+FILE_UPLOAD_PERMISSIONS = 0o640
 
 # ── I18N ────────────────────────────────────────────────────────
 LANGUAGE_CODE = 'en-us'
@@ -140,7 +179,12 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Django 5.1 removed the STATICFILES_STORAGE setting outright (it was
+# silently ignored here) — STORAGES is the only form it reads now.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -194,6 +238,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 # ── App-specific business settings (mirrors the legacy PHP app's config) ──
 SESSION_TIMEOUT_MINUTES = env.int('SESSION_TIMEOUT_MINUTES', default=30)
+# Public base URL — used to build absolute links in emails sent outside a request (cron, management commands).
+SITE_URL = env('SITE_URL', default='http://localhost:8010').rstrip('/')
 WHATSAPP_NUMBER = env('WHATSAPP_NUMBER', default='')
 BANK_NAME = env('BANK_NAME', default='')
 BANK_ACCOUNT_NO = env('BANK_ACCOUNT_NO', default='')

@@ -16,11 +16,23 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
     permission_classes = [IsStaffForWrite]
 
 
+class MaintenanceAwareCreate:
+    """When the maintenance_mode setting is on, public submissions politely decline (legacy api/book.php, api/custom_safari.php behaviour)."""
+
+    def create(self, request, *args, **kwargs):
+        from rest_framework.response import Response
+
+        from apps.core.settings_store import get_setting
+        if get_setting('maintenance_mode'):
+            return Response({'success': False, 'message': 'We are performing scheduled maintenance — please try again shortly or contact us directly.'}, status=503)
+        return super().create(request, *args, **kwargs)
+
+
 class PublicSubmissionThrottle(ScopedRateThrottle):
     throttle_scope = 'tracking'  # reuse the same strict per-IP window as booking tracking — both are unauthenticated public POSTs
 
 
-class ContactMessageViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class ContactMessageViewSet(MaintenanceAwareCreate, mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """Create is for the external site (via API key) submitting the contact form; list/retrieve is staff-only (reading guest messages is not something an integration partner needs)."""
     queryset = ContactMessage.objects.all()
     serializer_class = ContactMessageSerializer
@@ -32,7 +44,7 @@ class ContactMessageViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixi
         return [IsStaffRole()]
 
 
-class CustomSafariRequestViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
+class CustomSafariRequestViewSet(MaintenanceAwareCreate, mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
                                   mixins.UpdateModelMixin, viewsets.GenericViewSet):
     queryset = CustomSafariRequest.objects.select_related('customer').all()
     serializer_class = CustomSafariRequestSerializer

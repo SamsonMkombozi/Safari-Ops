@@ -1,0 +1,67 @@
+# Safari-Ops on the shared demo server.
+#   cd ~/safariops && docker compose -p safariops -f docker-compose.server.yml up -d --build
+# Secrets live in .env.server (chmod 600, never committed).
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--default-time-zone=+03:00"]
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    image: safariops-web
+    restart: unless-stopped
+    env_file: .env.server
+    environment:
+      DB_HOST: db
+      GUNICORN_BIND: 0.0.0.0:8000
+    depends_on:
+      db: { condition: service_healthy }
+    ports:
+      - "0.0.0.0:8600:8000"
+    volumes:
+      - media:/app/media
+      - logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8000/accounts/login/", "-H", "Host: 196.250.208.206"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+  scheduler:
+    image: safariops-web
+    restart: unless-stopped
+    command: ["scheduler"]
+    env_file: .env.server
+    environment:
+      DB_HOST: db
+    depends_on:
+      db: { condition: service_healthy }
+      web: { condition: service_started }
+    volumes:
+      - logs:/app/logs
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:58625:8025"   # web UI for caught email (SSH tunnel to view)
+
+volumes:
+  db:
+  media:
+  logs:

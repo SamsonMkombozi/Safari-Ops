@@ -1,76 +1,97 @@
 {% extends "dashboard/_base.html" %}
-{% block title %}Dashboard — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<h1 class="font-display text-2xl md:text-3xl mb-1">Welcome back, {{ request.user.first_name|default:request.user.username }}</h1>
-<p class="text-gray-500 text-sm mb-6">Here's what's happening across Safari Zangu Ventures.</p>
+<section class="welcome">
+  <div class="welcome-sun"></div>
+  <div style="position:relative;z-index:1">
+    <h2>Jambo, {{ request.user.first_name|default:request.user.username }}</h2>
+    <p>{{ stats.bookings_month }} booking{{ stats.bookings_month|pluralize }} this month · {{ stats.pending_quotes }} open quote{{ stats.pending_quotes|pluralize }} · {{ stats.new_requests }} new request{{ stats.new_requests|pluralize }} waiting.</p>
+  </div>
+  <div class="welcome-actions">
+    <a href="{% url 'dashboard:quotation_new' %}" class="admin-btn admin-btn--primary">{% icon 'plus' 14 %} New quotation</a>
+    <a href="{% url 'dashboard:booking_list' %}?when=upcoming" class="admin-btn admin-btn--outline">Upcoming trips</a>
+  </div>
+</section>
 
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Bookings (total)</div>
-    <div class="text-2xl font-semibold mt-1">{{ stats.bookings_total }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">This month</div>
-    <div class="text-2xl font-semibold mt-1">{{ stats.bookings_this_month }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Pending payment</div>
-    <div class="text-2xl font-semibold mt-1 text-amber-600">{{ stats.bookings_pending_payment }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Revenue (month)</div>
-    <div class="text-2xl font-semibold mt-1">${{ stats.revenue_this_month|floatformat:0 }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Open quotations</div>
-    <div class="text-2xl font-semibold mt-1">{{ stats.quotations_open }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Active leads</div>
-    <div class="text-2xl font-semibold mt-1">{{ stats.leads_active }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Commissions due</div>
-    <div class="text-2xl font-semibold mt-1">${{ stats.commissions_pending|floatformat:0 }}</div>
-  </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-4">
-    <div class="text-xs uppercase tracking-wide text-gray-400">Active packages</div>
-    <div class="text-2xl font-semibold mt-1">{{ stats.active_packages }}</div>
-  </div>
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Sales this month</span><span class="metric-value">{{ stats.sales_month|money }}</span><span class="metric-sub">{{ stats.bookings_month }} booking{{ stats.bookings_month|pluralize }}</span></div>
+  <a href="{% url 'dashboard:payment_list' %}" style="text-decoration:none"><div class="metric-card metric-card--green"><span class="metric-label">Collected this month</span><span class="metric-value">{{ stats.collected_month|money }}</span><span class="metric-sub">{{ stats.collected_total|money }} all-time</span></div></a>
+  <a href="{% url 'dashboard:invoice_list' %}?status=overdue" style="text-decoration:none"><div class="metric-card {% if stats.overdue_balances %}metric-card--amber{% endif %}"><span class="metric-label">Outstanding balances</span><span class="metric-value">{{ stats.outstanding|money }}</span><span class="metric-sub">{{ stats.overdue_balances }} due within balance window</span></div></a>
+  {% if request.user.is_admin_role %}<a href="{% url 'dashboard:profitability' %}" style="text-decoration:none"><div class="metric-card metric-card--blue"><span class="metric-label">Gross profit (month)</span><span class="metric-value">{{ stats.profit_month|money }}</span><span class="metric-sub">net of VAT &amp; supplier costs</span></div></a>{% endif %}
+</div>
+<div class="admin-metrics-grid" style="margin-bottom:1.5rem">
+  <a href="{% url 'dashboard:quotation_list' %}" style="text-decoration:none"><div class="metric-card"><span class="metric-label">Open quotations</span><span class="metric-value">{{ stats.pending_quotes }}</span><span class="metric-sub">{{ stats.pipeline_value|money }} in pipeline</span></div></a>
+  <a href="{% url 'dashboard:lead_list' %}" style="text-decoration:none"><div class="metric-card"><span class="metric-label">Active leads</span><span class="metric-value">{{ stats.leads_active }}</span><span class="metric-sub">{{ stats.new_requests }} new request{{ stats.new_requests|pluralize }}</span></div></a>
+  <a href="{% url 'dashboard:commission_list' %}" style="text-decoration:none"><div class="metric-card {% if stats.commissions_due %}metric-card--amber{% endif %}"><span class="metric-label">Commissions due</span><span class="metric-value">{{ stats.commissions_due|money }}</span><span class="metric-sub">pending + approved</span></div></a>
+  <a href="{% url 'dashboard:message_list' %}?show=unread" style="text-decoration:none"><div class="metric-card {% if stats.open_incidents %}metric-card--red{% endif %}"><span class="metric-label">Inbox</span><span class="metric-value">{{ stats.unread_messages }}</span><span class="metric-sub">{{ stats.pending_reminders }} reminders · {{ stats.open_incidents }} open incidents</span></div></a>
 </div>
 
-<div class="grid md:grid-cols-2 gap-6">
-  <div class="bg-white rounded-lg border border-gray-200">
-    <div class="px-4 py-3 border-b border-gray-100 font-medium">Recent Bookings</div>
-    <div class="divide-y divide-gray-100">
-      {% for b in recent_bookings %}
-      <a href="{% url 'dashboard:booking_detail' b.pk %}" class="flex items-center justify-between px-4 py-3 text-sm hover:bg-gray-50">
-        <div>
-          <div class="font-medium">{{ b.full_name }}</div>
-          <div class="text-gray-400 text-xs">{{ b.booking_ref }} · {{ b.travel_date }}</div>
-        </div>
-        <span class="text-xs px-2 py-1 rounded-full
-          {% if b.payment_status == 'fully_paid' %}bg-green-100 text-green-700
-          {% elif b.payment_status == 'deposit_paid' %}bg-blue-100 text-blue-700
-          {% elif b.payment_status == 'cancelled' %}bg-red-100 text-red-700
-          {% else %}bg-amber-100 text-amber-700{% endif %}">{{ b.get_payment_status_display }}</span>
-      </a>
-      {% empty %}<div class="px-4 py-6 text-sm text-gray-400 text-center">No bookings yet.</div>{% endfor %}
+<div class="split">
+  <div class="stack">
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Upcoming departures (30 days)</h3><a href="{% url 'dashboard:booking_list' %}?when=upcoming" class="admin-btn admin-btn--outline" style="font-size:.65rem">View all →</a></div>
+      <div class="admin-table-wrap"><table class="admin-table">
+        <thead><tr><th>Travel</th><th>Guest</th><th>Package</th><th class="num">Balance</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for b in upcoming %}
+        <tr onclick="location='{% url 'dashboard:booking_detail' b.pk %}'" style="cursor:pointer">
+          <td class="nowrap">{{ b.travel_date|date:"d M Y" }}</td>
+          <td><strong>{{ b.full_name }}</strong><div class="muted">{{ b.booking_ref }} · {{ b.travelers }} pax</div></td>
+          <td style="font-size:.78rem">{{ b.package_name|default:"—" }}</td>
+          <td class="num">{{ b.balance_due|money }}</td>
+          <td>{% status_badge b.payment_status b.get_payment_status_display %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="admin-empty">No departures in the next 30 days.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Recent bookings</h3><a href="{% url 'dashboard:booking_list' %}" class="admin-btn admin-btn--outline" style="font-size:.65rem">View all →</a></div>
+      <div class="admin-table-wrap"><table class="admin-table">
+        <thead><tr><th>Ref</th><th>Guest</th><th class="num">Total</th><th class="num">Paid</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for b in recent_bookings %}
+        <tr onclick="location='{% url 'dashboard:booking_detail' b.pk %}'" style="cursor:pointer">
+          <td><span class="ref-code">{{ b.booking_ref }}</span></td>
+          <td><strong>{{ b.full_name }}</strong><div class="muted">{{ b.created_at|date:"d M Y" }}</div></td>
+          <td class="num">{{ b.total_amount|money }}</td><td class="num">{{ b.amount_paid|money }}</td>
+          <td>{% status_badge b.payment_status b.get_payment_status_display %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="admin-empty">No bookings yet.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
     </div>
   </div>
-
-  <div class="bg-white rounded-lg border border-gray-200">
-    <div class="px-4 py-3 border-b border-gray-100 font-medium">Recent Leads</div>
-    <div class="divide-y divide-gray-100">
-      {% for l in recent_leads %}
-      <div class="flex items-center justify-between px-4 py-3 text-sm">
-        <div>
-          <div class="font-medium">{{ l.full_name }}</div>
-          <div class="text-gray-400 text-xs">{{ l.agent.get_full_name|default:"Unassigned" }}</div>
-        </div>
-        <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ l.get_pipeline_stage_display }}</span>
+  <div class="stack">
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Sales pipeline</h3><a href="{% url 'dashboard:sales' %}" class="admin-btn admin-btn--outline" style="font-size:.65rem">Analytics →</a></div>
+      <div class="admin-card-body">
+        {% for p in pipeline %}
+        <a href="{% url 'dashboard:lead_list' %}?stage={{ p.stage }}" style="display:grid;grid-template-columns:90px 1fr 36px;gap:.6rem;align-items:center;margin-bottom:.5rem;text-decoration:none;color:inherit;font-size:.78rem">
+          <span>{{ p.label }}</span><div class="bar"><span style="width:{{ p.pct }}%"></span></div><strong class="num">{{ p.n }}</strong>
+        </a>
+        {% empty %}<p class="admin-empty">No leads yet.</p>{% endfor %}
       </div>
-      {% empty %}<div class="px-4 py-6 text-sm text-gray-400 text-center">No leads yet.</div>{% endfor %}
+    </div>
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>New custom requests</h3><a href="{% url 'dashboard:request_list' %}" class="admin-btn admin-btn--outline" style="font-size:.65rem">View all →</a></div>
+      <div class="admin-card-body">
+        {% for r in requests %}
+        <a href="{% url 'dashboard:request_detail' r.pk %}" class="lead-item" style="display:block;text-decoration:none;color:inherit;padding:.45rem 0;border-bottom:1px solid var(--gray-100)">
+          <div class="lead-name" style="font-weight:600;font-size:.82rem">{{ r.full_name }}</div>
+          <div class="muted">{{ r.country|default:"—" }} · {{ r.duration_days|default:"?" }} days · {{ r.created_at|timesince }} ago</div>
+        </a>
+        {% empty %}<p class="admin-empty">No new requests.</p>{% endfor %}
+      </div>
+    </div>
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Quick actions</h3></div>
+      <div class="admin-card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+        <a href="{% url 'dashboard:quotation_new' %}" class="admin-btn admin-btn--primary" style="justify-content:center">+ Quotation</a>
+        <a href="{% url 'dashboard:lead_new' %}" class="admin-btn admin-btn--outline" style="justify-content:center">+ Lead</a>
+        <a href="{% url 'dashboard:invoice_list' %}" class="admin-btn admin-btn--outline" style="justify-content:center">Invoices</a>
+        <a href="{% url 'dashboard:email_queue' %}" class="admin-btn admin-btn--muted" style="justify-content:center">Email queue</a>
+      </div>
     </div>
   </div>
 </div>

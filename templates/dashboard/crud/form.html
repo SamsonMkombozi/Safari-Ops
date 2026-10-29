@@ -1,0 +1,21 @@
+{% extends "dashboard/_base.html" %}
+{% load ui %}
+{% block content %}
+<div class="admin-card" style="max-width:980px">
+  <div class="admin-card-header">
+    <h3>{% if obj %}Edit {{ res.singular|lower }}: {{ obj }}{% else %}New {{ res.singular|lower }}{% endif %}</h3>
+    <a href="{{ res.url }}" class="admin-btn admin-btn--outline">← Back to {{ res.title }}</a>
+  </div>
+  <div class="admin-card-body">
+    {% if res.help %}<div class="admin-alert admin-alert--info" style="font-weight:500">{{ res.help }}</div>{% endif %}
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button type="submit" class="admin-btn admin-btn--primary">{% icon 'check' 13 %} Save</button>
+        <a href="{{ res.url }}" class="admin-btn admin-btn--muted">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

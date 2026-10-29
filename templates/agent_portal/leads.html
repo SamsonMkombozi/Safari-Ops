@@ -1,28 +1,25 @@
 {% extends "agent_portal/_base.html" %}
-{% block title %}My Leads — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<h1 class="font-display text-2xl md:text-3xl mb-6">My Leads</h1>
-<div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-  <table class="w-full text-sm min-w-[560px]">
-    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-      <tr>
-        <th class="text-left px-4 py-3">Name</th>
-        <th class="text-left px-4 py-3">Stage</th>
-        <th class="text-left px-4 py-3">Value</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-100">
-      {% for l in leads %}
-      <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{% url "agent_portal:lead_detail" l.pk %}'">
-        <td class="px-4 py-3">
-          <div class="font-medium">{{ l.full_name }}</div>
-          <div class="text-gray-400 text-xs">{{ l.email }}</div>
-        </td>
-        <td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{{ l.get_pipeline_stage_display }}</span></td>
-        <td class="px-4 py-3">${{ l.booking_value|floatformat:0 }}</td>
-      </tr>
-      {% empty %}<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400">No leads yet.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+<div class="toolbar">
+  <div class="admin-filter-pills">
+    <a href="?" class="admin-filter-pill admin-filter-pill--dark{% if not stage_filter %} active{% endif %}">All</a>
+    {% for v, l in stages %}{% with n=counts|get_attr:v %}{% if n %}<a href="?stage={{ v }}" class="admin-filter-pill{% if stage_filter == v %} active{% endif %}">{{ l }} ({{ n }})</a>{% endif %}{% endwith %}{% endfor %}
+  </div>
+  <div style="display:flex;gap:.5rem">
+    {% if direct_booking_enabled %}<a href="{% url 'agent_portal:direct_booking' %}" class="admin-btn admin-btn--primary">+ Book a Package</a>{% endif %}
+    <a href="{% url 'agent_portal:custom_request' %}" class="admin-btn admin-btn--outline">+ Custom Request</a>
+  </div>
 </div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Date</th><th>Client</th><th>Country</th><th>Package / destinations</th><th>Travel</th><th class="num">Value</th><th class="num">Commission</th><th>Stage</th></tr></thead>
+  <tbody>{% for l in page_obj %}
+  <tr onclick="location='{% url 'agent_portal:lead_detail' l.pk %}'" style="cursor:pointer">
+    <td class="nowrap muted">{{ l.created_at|date:"d M Y" }}</td><td><strong>{{ l.full_name }}</strong><div class="muted">{{ l.email }}</div></td><td>{{ l.country|default:"—" }}</td>
+    <td style="font-size:.78rem">{{ l.package_name|default:l.destinations|default:"—"|truncatechars:40 }}</td><td class="nowrap">{{ l.travel_date|date:"d M Y"|default:"—" }}</td>
+    <td class="num">{{ l.booking_value|money }}</td><td class="num">{{ l.commission_amount|money }}</td><td>{% status_badge l.pipeline_stage l.get_pipeline_stage_display %}</td></tr>
+  {% empty %}<tr><td colspan="8" class="admin-empty">No leads yet.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+<p class="muted" style="margin-top:1rem">Pipeline stages are set by the office as your client progresses; a commission is created automatically when a lead is booked.</p>
 {% endblock %}

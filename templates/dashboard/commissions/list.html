@@ -1,33 +1,44 @@
 {% extends "dashboard/_base.html" %}
-{% block title %}Commissions — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<h1 class="font-display text-2xl md:text-3xl mb-6">Commissions</h1>
-<div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-  <table class="w-full text-sm min-w-[640px]">
-    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--amber"><span class="metric-label">Pending approval</span><span class="metric-value">{{ totals.pending|money }}</span></div>
+  <div class="metric-card metric-card--blue"><span class="metric-label">Approved (to pay)</span><span class="metric-value">{{ totals.approved|money }}</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">Paid out</span><span class="metric-value">{{ totals.paid|money }}</span></div>
+  <div class="metric-card"><span class="metric-label">Clawed back</span><span class="metric-value">{{ totals.cancelled|money }}</span><span class="metric-sub">cancelled bookings</span></div>
+</div>
+<div class="split">
+  <div>
+    <div class="toolbar"><form method="get">
+      <select name="status" class="admin-input" onchange="this.form.submit()"><option value="">All statuses</option>{% for v, l in statuses %}<option value="{{ v }}"{% if v == status_filter %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+      <select name="agent" class="admin-input" onchange="this.form.submit()"><option value="">All agents</option>{% for a in agents %}<option value="{{ a.pk }}"{% if agent_filter == a.pk|stringformat:"s" %} selected{% endif %}>{{ a.get_full_name|default:a.username }}</option>{% endfor %}</select>
+    </form></div>
+    <div class="admin-table-wrap"><table class="admin-table">
+      <thead><tr><th>Created</th><th>Agent</th><th>Client</th><th class="num">Booking value</th><th>Rate</th><th class="num">Commission</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for c in page_obj %}
       <tr>
-        <th class="text-left px-4 py-3">Agent</th>
-        <th class="text-left px-4 py-3">Booking</th>
-        <th class="text-left px-4 py-3">Amount</th>
-        <th class="text-left px-4 py-3">Status</th>
+        <td class="nowrap">{{ c.created_at|date:"d M Y" }}</td><td><strong>{{ c.agent.get_full_name|default:c.agent.username }}</strong></td>
+        <td>{{ c.client_name }}<div class="muted">{{ c.package_name }} {% if c.booking_ref %}· {{ c.booking_ref }}{% endif %}</div></td>
+        <td class="num">{{ c.booking_value|money }}</td><td>{{ c.commission_rate|floatformat:1 }}%</td><td class="num"><strong>{{ c.commission_amount|money:2 }}</strong></td>
+        <td>{% if request.user.may_change_status %}
+          <form method="post" action="{% url 'dashboard:commission_status' c.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <select name="status" class="status-select" onchange="this.form.submit()">{% for v, l in statuses %}<option value="{{ v }}"{% if v == c.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></form>
+          {% else %}{% status_badge c.status %}{% endif %}
+          {% if c.paid_at %}<div class="muted">paid {{ c.paid_at|date:"d M" }}</div>{% endif %}</td>
       </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-100">
-      {% for c in commissions %}
-      <tr class="hover:bg-gray-50">
-        <td class="px-4 py-3">{{ c.agent.get_full_name|default:c.agent.username }}</td>
-        <td class="px-4 py-3 font-mono text-xs">{{ c.booking_ref|default:"—" }}</td>
-        <td class="px-4 py-3">${{ c.commission_amount|floatformat:2 }}</td>
-        <td class="px-4 py-3">
-          <span class="text-xs px-2 py-1 rounded-full
-            {% if c.status == 'paid' %}bg-green-100 text-green-700
-            {% elif c.status == 'approved' %}bg-blue-100 text-blue-700
-            {% elif c.status == 'cancelled' %}bg-red-100 text-red-700
-            {% else %}bg-amber-100 text-amber-700{% endif %}">{{ c.get_status_display }}</span>
-        </td>
-      </tr>
-      {% empty %}<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No commissions found.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+      {% empty %}<tr><td colspan="7" class="admin-empty">No commissions.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+    {% include "partials/pagination.html" %}
+  </div>
+  <div class="admin-card"><div class="admin-card-header"><h3>Agent rates</h3></div><div class="admin-card-body">
+    {% for a in agents %}<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:.35rem 0;border-bottom:1px solid var(--gray-100)"><span>{{ a.get_full_name|default:a.username }} <span class="muted">({{ a.n_comm }})</span></span><span>{{ a.commission_rate|default:"default" }}{% if a.commission_rate %}%{% endif %} · earned {{ a.earned|money }}</span></div>{% endfor %}
+    {% if request.user.is_admin_role %}
+    <form method="post" action="{% url 'dashboard:commission_agent_rate' %}" style="margin-top:1rem">{% csrf_token %}
+      {% with form=rate_form %}{% include "partials/form_fields.html" %}{% endwith %}
+      <button class="admin-btn admin-btn--primary">Set rate</button></form>
+    {% endif %}
+  </div></div>
 </div>
 {% endblock %}

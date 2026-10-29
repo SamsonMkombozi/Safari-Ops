@@ -1,19 +1,24 @@
 {% extends "agent_portal/_base.html" %}
-{% block title %}{{ lead.full_name }} — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<a href="{% url 'agent_portal:lead_list' %}" class="text-sm text-gray-500 hover:text-gray-800">&larr; My Leads</a>
-<h1 class="font-display text-2xl md:text-3xl mt-2 mb-1">{{ lead.full_name }}</h1>
-<p class="text-gray-500 text-sm mb-6">{{ lead.email }} · {{ lead.phone|default:"no phone on file" }}</p>
-
-<div class="bg-white rounded-lg border border-gray-200 p-5 space-y-4 text-sm">
-  <div class="grid grid-cols-2 gap-4">
-    <div><span class="text-gray-400">Stage</span><div>{{ lead.get_pipeline_stage_display }}</div></div>
-    <div><span class="text-gray-400">Source</span><div>{{ lead.source }}</div></div>
-    <div><span class="text-gray-400">Travel date</span><div>{{ lead.travel_date|default:lead.travel_month|default:"—" }}</div></div>
-    <div><span class="text-gray-400">Party size</span><div>{{ lead.party_size|default:"—" }}</div></div>
-    <div><span class="text-gray-400">Budget</span><div>{{ lead.budget_range|default:"—" }}</div></div>
-    <div><span class="text-gray-400">Booking value</span><div>${{ lead.booking_value|floatformat:0 }}</div></div>
+<div class="toolbar"><a href="{% url 'agent_portal:lead_list' %}" class="admin-btn admin-btn--outline">← My Leads</a>{% status_badge lead.pipeline_stage lead.get_pipeline_stage_display %}</div>
+<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:1.25rem;align-items:start" class="admin-split-layout">
+  <div class="admin-card"><div class="admin-card-header"><h3>Client</h3></div><div class="admin-card-body"><dl class="kv">
+    <dt>Name</dt><dd><strong>{{ lead.full_name }}</strong></dd><dt>Contact</dt><dd>{{ lead.email }} · {{ lead.phone|default:"—" }}</dd><dt>Country</dt><dd>{{ lead.country|default:"—" }}</dd>
+    <dt>Package</dt><dd>{{ lead.package_name|default:"—" }}</dd><dt>Destinations</dt><dd>{{ lead.destinations|default:"—" }}</dd>
+    <dt>Party / travel</dt><dd>{{ lead.party_size|default:"?" }} pax · {{ lead.travel_date|date:"d M Y"|default:"date TBC" }}</dd><dt>Budget</dt><dd>{{ lead.budget_range|default:"—" }}</dd>
+    <dt>Source</dt><dd>{{ lead.source }}</dd><dt>Notes</dt><dd>{{ lead.notes|default:"—"|linebreaksbr }}</dd>
+  </dl></div></div>
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+    <div class="admin-card"><div class="admin-card-header"><h3>Commission</h3></div><div class="admin-card-body">
+      {% if commission %}<div style="font-size:1.4rem;font-weight:700">{{ commission.commission_amount|money:2 }}</div><div class="muted">{{ commission.commission_rate }}% of {{ commission.booking_value|money }} · {% status_badge commission.status %}</div>
+      {% else %}<p class="muted">No commission yet — created when this lead is booked.</p>{% endif %}
+    </div></div>
+    <div class="admin-card"><div class="admin-card-header"><h3>Bookings &amp; quotations</h3></div><div class="admin-card-body">
+      {% for b in bookings %}<div style="font-size:.82rem;padding:.3rem 0">Booking <span class="ref-code">{{ b.booking_ref }}</span> · {{ b.total_amount|money }} {% status_badge b.payment_status b.get_payment_status_display %}</div>{% endfor %}
+      {% for q in quotations %}<div style="font-size:.82rem;padding:.3rem 0">Quote <span class="ref-code">{{ q.quote_ref }}</span> · {{ q.grand_total|money }} {% status_badge q.status %}</div>{% endfor %}
+      {% if not bookings and not quotations %}<p class="muted">Nothing yet.</p>{% endif %}
+    </div></div>
   </div>
-  {% if lead.notes %}<div><span class="text-gray-400">Notes</span><p class="whitespace-pre-line">{{ lead.notes }}</p></div>{% endif %}
 </div>
 {% endblock %}

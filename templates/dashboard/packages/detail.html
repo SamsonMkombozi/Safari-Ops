@@ -1,24 +1,35 @@
 {% extends "dashboard/_base.html" %}
-{% block title %}{{ package.name }} — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<a href="{% url 'dashboard:package_list' %}" class="text-sm text-gray-500 hover:text-gray-800">&larr; Packages</a>
-<h1 class="font-display text-2xl md:text-3xl mt-2 mb-1">{{ package.name }}</h1>
-<p class="text-gray-500 text-sm mb-6">{{ package.duration_days }} days · {{ package.get_accommodation_level_display }} · ${{ package.price_1pax|floatformat:0 }}/pp</p>
-
-<div class="grid md:grid-cols-3 gap-6">
-  <div class="md:col-span-2 bg-white rounded-lg border border-gray-200 p-5">
-    <h2 class="font-medium mb-2">Overview</h2>
-    <p class="text-sm text-gray-600 whitespace-pre-line">{{ package.overview|default:"—" }}</p>
-    {% if package.itinerary %}
-    <h2 class="font-medium mt-6 mb-2">Linked Itinerary</h2>
-    <p class="text-sm text-gray-600">{{ package.itinerary.name }} ({{ package.itinerary.duration_days }} days)</p>
-    {% endif %}
+<div class="toolbar">
+  <a href="{% url 'crud:packages' %}" class="admin-btn admin-btn--outline">← Packages</a>
+  <div style="display:flex;gap:.5rem">
+    <a href="{% url 'crud:packages-edit' package.pk %}" class="admin-btn admin-btn--outline">{% icon 'edit' 13 %} Edit</a>
+    <form method="post" action="{% url 'dashboard:package_reprice' package.pk %}" class="inline-form" data-confirm="Recalculate the public “from” price for 1 traveler from current itinerary rates?" data-confirm-safe="1" data-confirm-label="Reprice">{% csrf_token %}<button class="admin-btn admin-btn--primary">{% icon 'refresh' 13 %} Reprice from itinerary</button></form>
   </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-5 space-y-3 text-sm">
-    <div><span class="text-gray-400">Slug</span><div class="font-mono">{{ package.slug }}</div></div>
-    <div><span class="text-gray-400">Sort order</span><div>{{ package.sort_order }}</div></div>
-    <div><span class="text-gray-400">Featured</span><div>{{ package.is_featured|yesno:"Yes,No" }}</div></div>
-    <div><span class="text-gray-400">Active</span><div>{{ package.is_active|yesno:"Yes,No" }}</div></div>
+</div>
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">“From” price (1 pax)</span><span class="metric-value">{{ package.price_1pax|money }}</span><span class="metric-sub">itemised now: {{ totals_1pax.grand_total|money }}</span></div>
+  <div class="metric-card"><span class="metric-label">2 travelers</span><span class="metric-value">{{ totals.grand_total|money }}</span><span class="metric-sub">supplier cost {{ supplier_cost_2pax|money }}</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">Sold</span><span class="metric-value">{{ sold_count }}</span><span class="metric-sub">{{ sold_value|money }}</span></div>
+</div>
+<div class="split">
+  <div class="admin-card"><div class="admin-card-header"><h3>Price breakdown — 2 adults</h3></div><div class="admin-table-wrap"><table class="admin-table">
+    <thead><tr><th>Item</th><th>Qty</th><th class="num">Amount</th></tr></thead>
+    <tbody>{% for li in built.line_items %}<tr><td>{{ li.description }}<div class="muted">{{ li.category }}</div></td><td class="muted">{{ li.quantity_str }}</td><td class="num">{{ li.amount|money:2 }}</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><td colspan="2" class="num">Subtotal</td><td class="num">{{ totals.subtotal|money:2 }}</td></tr><tr><td colspan="2" class="num">VAT</td><td class="num">{{ totals.vat|money:2 }}</td></tr><tr><td colspan="2" class="num"><strong>Total</strong></td><td class="num"><strong>{{ totals.grand_total|money:2 }}</strong></td></tr></tfoot>
+  </table></div></div>
+  <div class="stack">
+    <div class="admin-card"><div class="admin-card-header"><h3>{{ package.name }}</h3></div><div class="admin-card-body"><dl class="kv">
+      <dt>Slug</dt><dd>{{ package.slug }}</dd><dt>Duration</dt><dd>{{ package.duration_days }} days</dd><dt>Level</dt><dd>{{ package.get_accommodation_level_display|default:"—" }}</dd>
+      <dt>Itinerary</dt><dd>{% if package.itinerary %}<a class="admin-link" href="{% url 'crud:itineraries-edit' package.itinerary.pk %}">{{ package.itinerary.name }}</a>{% else %}—{% endif %}</dd>
+      <dt>Active</dt><dd>{{ package.is_active|yesno:"Yes,No" }} · featured {{ package.is_featured|yesno:"yes,no" }}</dd>
+      <dt>Summary</dt><dd>{{ package.short_description|default:"—" }}</dd>
+    </dl></div></div>
+    <div class="admin-card"><div class="admin-card-header"><h3>Day by day</h3></div><div class="admin-card-body">
+      {% for d in built.day_titles %}<div style="font-size:.8rem;padding:.3rem 0;border-bottom:1px solid var(--gray-100)"><strong>Day {{ d.day }}</strong> — {{ d.title }}<div class="muted">{{ d.accommodation|default:"" }}{% if d.park %} · {{ d.park }}{% endif %}</div></div>
+      {% empty %}<p class="muted">No itinerary days.</p>{% endfor %}
+    </div></div>
   </div>
 </div>
 {% endblock %}

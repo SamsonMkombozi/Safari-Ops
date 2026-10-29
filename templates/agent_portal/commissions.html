@@ -1,34 +1,17 @@
 {% extends "agent_portal/_base.html" %}
-{% block title %}My Commissions — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<h1 class="font-display text-2xl md:text-3xl mb-6">My Commissions</h1>
-<div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-  <table class="w-full text-sm min-w-[560px]">
-    <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-      <tr>
-        <th class="text-left px-4 py-3">Booking</th>
-        <th class="text-left px-4 py-3">Amount</th>
-        <th class="text-left px-4 py-3">Status</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-100">
-      {% for c in commissions %}
-      <tr class="hover:bg-gray-50">
-        <td class="px-4 py-3">
-          <div class="font-mono text-xs">{{ c.booking_ref|default:"—" }}</div>
-          <div class="text-gray-400 text-xs">{{ c.client_name }}</div>
-        </td>
-        <td class="px-4 py-3">${{ c.commission_amount|floatformat:2 }}</td>
-        <td class="px-4 py-3">
-          <span class="text-xs px-2 py-1 rounded-full
-            {% if c.status == 'paid' %}bg-green-100 text-green-700
-            {% elif c.status == 'approved' %}bg-blue-100 text-blue-700
-            {% elif c.status == 'cancelled' %}bg-red-100 text-red-700
-            {% else %}bg-amber-100 text-amber-700{% endif %}">{{ c.get_status_display }}</span>
-        </td>
-      </tr>
-      {% empty %}<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400">No commissions yet.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+<div class="admin-metrics-grid" style="margin-bottom:1.5rem">
+  <div class="metric-card metric-card--amber"><span class="metric-label">Pending approval</span><span class="metric-value">{{ totals.pending|money }}</span></div>
+  <div class="metric-card metric-card--blue"><span class="metric-label">Approved</span><span class="metric-value">{{ totals.approved|money }}</span><span class="metric-sub">awaiting payout</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">Paid</span><span class="metric-value">{{ totals.paid|money }}</span></div>
+  <div class="metric-card"><span class="metric-label">Your rate</span><span class="metric-value">{{ rate|floatformat:"-2" }}%</span><span class="metric-sub">of booking value</span></div>
 </div>
+<div class="admin-filter-pills" style="margin-bottom:1rem"><a href="?" class="admin-filter-pill{% if not status_filter %} active{% endif %}">All</a>{% for v, l in statuses %}<a href="?status={{ v }}" class="admin-filter-pill{% if status_filter == v %} active{% endif %}">{{ l }}</a>{% endfor %}</div>
+<div class="admin-table-wrap"><table class="admin-table">
+  <thead><tr><th>Date</th><th>Client</th><th>Package</th><th class="num">Booking value</th><th>Rate</th><th class="num">Commission</th><th>Status</th></tr></thead>
+  <tbody>{% for c in commissions %}<tr><td class="nowrap">{{ c.created_at|date:"d M Y" }}</td><td><strong>{{ c.client_name }}</strong></td><td>{{ c.package_name }}</td><td class="num">{{ c.booking_value|money }}</td>
+    <td>{{ c.commission_rate|floatformat:1 }}%</td><td class="num"><strong>{{ c.commission_amount|money:2 }}</strong></td><td>{% status_badge c.status %}{% if c.paid_at %}<div class="muted">{{ c.paid_at|date:"d M Y" }}</div>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="7" class="admin-empty">No commissions yet.</td></tr>{% endfor %}</tbody>
+</table></div>
 {% endblock %}

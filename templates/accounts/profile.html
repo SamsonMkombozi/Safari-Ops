@@ -1,18 +1,11 @@
-{% extends request.user.is_staff_role|yesno:"dashboard/_base.html,agent_portal/_base.html" %}
-{% block title %}My Profile — {{ SITE_NAME }}{% endblock %}
+{% extends base_template %}
+{% load ui %}
 {% block content %}
-<h1 class="font-display text-2xl md:text-3xl mb-6">My Profile</h1>
-<form method="post" class="bg-white rounded-lg border border-gray-200 p-5 space-y-4 max-w-lg text-sm">
-  {% csrf_token %}
-  {% for field in form %}
-  <div>
-    <label class="block text-xs uppercase tracking-wide text-gray-400 mb-1">{{ field.label }}</label>
-    {{ field }}
-    {% if field.errors %}<p class="text-xs text-red-600 mt-1">{{ field.errors.0 }}</p>{% endif %}
+<div class="admin-card" style="max-width:720px">
+  <div class="admin-card-header"><h3>{{ request.user.get_full_name|default:request.user.username }} <span class="muted">@{{ request.user.username }} · {{ request.user.get_role_display }}</span></h3><a href="{% url 'accounts:change_password' %}" class="admin-btn admin-btn--outline">{% icon 'key' 13 %} Change password</a></div>
+  <div class="admin-card-body">
+    {% if request.user.is_agent_role %}<p class="muted" style="margin-bottom:1rem">Commission rate: {{ request.user.commission_rate|default:"site default" }}{% if request.user.commission_rate %}%{% endif %}{% if request.user.target_monthly %} · Monthly target {{ request.user.target_monthly|money }}{% endif %}</p>{% endif %}
+    <form method="post">{% csrf_token %}{% include "partials/form_fields.html" %}<button class="admin-btn admin-btn--primary" style="margin-top:1rem">Save profile</button></form>
   </div>
-  {% endfor %}
-  <button type="submit" class="bg-ink text-white rounded px-4 py-2 text-sm font-medium hover:bg-black">Save Changes</button>
-</form>
-<a href="{% url 'accounts:change_password' %}" class="inline-block mt-4 text-sm text-gold-text hover:underline">Change Password &rarr;</a>
-<style>input[type=text],textarea{width:100%;border:1px solid #d1d5db;border-radius:6px;padding:.5rem .7rem;font-size:.875rem}</style>
+</div>
 {% endblock %}

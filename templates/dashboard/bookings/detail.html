@@ -1,33 +1,115 @@
 {% extends "dashboard/_base.html" %}
-{% block title %}{{ booking.booking_ref }} — {{ SITE_NAME }}{% endblock %}
+{% load ui %}
 {% block content %}
-<a href="{% url 'dashboard:booking_list' %}" class="text-sm text-gray-500 hover:text-gray-800">&larr; Bookings</a>
-<h1 class="font-display text-2xl md:text-3xl mt-2 mb-1">{{ booking.booking_ref }}</h1>
-<p class="text-gray-500 text-sm mb-6">{{ booking.full_name }} · {{ booking.travel_date }}</p>
+<div class="toolbar">
+  <div style="display:flex;gap:.5rem;align-items:center">{% status_badge booking.payment_status booking.get_payment_status_display %}<span class="muted">Created {{ booking.created_at|date:"d M Y H:i" }}{% if booking.created_by %} by {{ booking.created_by.get_full_name|default:booking.created_by.username }}{% endif %}</span></div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{% url 'dashboard:booking_list' %}" class="admin-btn admin-btn--outline">← Bookings</a>
+    <a href="{% url 'dashboard:invoice_detail' booking.pk %}" class="admin-btn admin-btn--outline">{% icon 'invoices' 13 %} Invoice</a>
+    {% if request.user.is_admin_role %}<a href="{% url 'dashboard:booking_edit' booking.pk %}" class="admin-btn admin-btn--outline">{% icon 'edit' 13 %} Edit</a>{% endif %}
+    <form method="post" action="{% url 'dashboard:booking_reset_tracking' booking.pk %}" class="inline-form" data-confirm="Issue a new Track Booking password? The old one stops working." data-confirm-safe="1" data-confirm-label="Reset">{% csrf_token %}<button class="admin-btn admin-btn--muted">{% icon 'key' 13 %} Reset tracking password</button></form>
+  </div>
+</div>
 
-<div class="grid md:grid-cols-3 gap-6">
-  <div class="md:col-span-2 bg-white rounded-lg border border-gray-200 p-5 space-y-4 text-sm">
-    <div class="grid grid-cols-2 gap-4">
-      <div><span class="text-gray-400">Email</span><div>{{ booking.email }}</div></div>
-      <div><span class="text-gray-400">Phone</span><div>{{ booking.phone }}</div></div>
-      <div><span class="text-gray-400">Travelers</span><div>{{ booking.travelers }} ({{ booking.adults }} adults, {{ booking.children }} children)</div></div>
-      <div><span class="text-gray-400">Package</span><div>{{ booking.package_name }}</div></div>
+<div class="admin-metrics-grid" style="margin-bottom:1.25rem">
+  <div class="metric-card metric-card--dark"><span class="metric-label">Total</span><span class="metric-value">{{ booking.total_amount|money:2 }}</span><span class="metric-sub">deposit {{ booking.deposit_amount|money }}</span></div>
+  <div class="metric-card metric-card--green"><span class="metric-label">Paid</span><span class="metric-value">{{ booking.amount_paid|money:2 }}</span><span class="metric-sub">{{ payments|length }} payment{{ payments|length|pluralize }}</span></div>
+  <div class="metric-card {% if booking.balance_due > 0 %}metric-card--amber{% endif %}"><span class="metric-label">Balance due</span><span class="metric-value">{{ booking.balance_due|money:2 }}</span><span class="metric-sub">travel {{ booking.travel_date|date:"d M Y" }}</span></div>
+  {% if request.user.is_admin_role %}<div class="metric-card metric-card--blue"><span class="metric-label">Gross profit</span><span class="metric-value">{{ booking.gross_profit|money }}</span><span class="metric-sub">supplier cost {{ booking.supplier_cost|money }}</span></div>{% endif %}
+</div>
+
+<div class="split">
+  <div class="stack">
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Trip &amp; guest</h3></div>
+      <div class="admin-card-body"><dl class="kv">
+        <dt>Guest</dt><dd><strong>{{ booking.full_name }}</strong>{% if booking.customer %} · <a class="admin-link" href="{% url 'dashboard:customer_detail' booking.customer.pk %}">customer profile</a>{% endif %}</dd>
+        <dt>Contact</dt><dd>{{ booking.email }} · {{ booking.phone }}</dd>
+        <dt>Country</dt><dd>{{ booking.country|default:"—" }}</dd>
+        <dt>Package</dt><dd>{{ booking.package_name|default:"—" }} ({{ booking.get_accommodation_level_display }})</dd>
+        <dt>Party</dt><dd>{{ booking.adults }} adult{{ booking.adults|pluralize }}{% if booking.children %}, {{ booking.children }} child{{ booking.children|pluralize:"ren" }}{% endif %} · {{ booking.rooms }} room{{ booking.rooms|pluralize }}</dd>
+        <dt>Travel date</dt><dd>{{ booking.travel_date|date:"l, d F Y" }}</dd>
+        <dt>Quotation</dt><dd>{% if booking.quotation %}<a class="admin-link" href="{% url 'dashboard:quotation_detail' booking.quotation.pk %}">{{ booking.quotation.quote_ref }}</a>{% else %}—{% endif %}</dd>
+        <dt>Agent</dt><dd>{{ booking.agent.get_full_name|default:"Direct" }}{% if commission %} · commission {{ commission.commission_amount|money:2 }} {% status_badge commission.status %}{% endif %}</dd>
+        <dt>Special request</dt><dd>{{ booking.special_request|default:"—"|linebreaksbr }}</dd>
+        {% if booking.payment_notes %}<dt>Payment notes</dt><dd>{{ booking.payment_notes|linebreaksbr }}</dd>{% endif %}
+      </dl></div>
     </div>
-    {% if booking.special_request %}
-    <div><span class="text-gray-400">Special request</span><p class="whitespace-pre-line">{{ booking.special_request }}</p></div>
+
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Payments ledger</h3></div>
+      <div class="admin-table-wrap"><table class="admin-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Method</th><th>Reference</th><th class="num">Amount</th><th>By</th></tr></thead>
+        <tbody>
+        {% for p in payments %}
+        <tr><td class="nowrap">{{ p.received_at|date:"d M Y" }}</td><td>{{ p.get_kind_display }}</td><td>{{ p.get_method_display }}</td><td class="muted">{{ p.reference|default:"—" }}</td>
+          <td class="num"><strong{% if p.amount < 0 %} style="color:var(--red)"{% endif %}>{{ p.amount|money:2 }}</strong></td><td class="muted">{{ p.recorded_by.username|default:"system" }}</td></tr>
+        {% empty %}<tr><td colspan="6" class="admin-empty">No payments recorded yet.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+
+    {% if line_items %}
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Priced line items</h3></div>
+      <div class="admin-table-wrap"><table class="admin-table">
+        <thead><tr><th>Item</th><th>Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr></thead>
+        <tbody>{% for li in line_items %}<tr><td>{{ li.description }}<div class="muted">{{ li.category }}</div></td><td class="muted">{{ li.quantity_str }}</td><td class="num">{{ li.unit_price|money:2 }}</td><td class="num">{{ li.amount|money:2 }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
     {% endif %}
   </div>
-  <div class="bg-white rounded-lg border border-gray-200 p-5 space-y-3 text-sm">
-    <div><span class="text-gray-400">Status</span>
-      <div class="mt-1 inline-block text-xs px-2 py-1 rounded-full
-        {% if booking.payment_status == 'fully_paid' %}bg-green-100 text-green-700
-        {% elif booking.payment_status == 'deposit_paid' %}bg-blue-100 text-blue-700
-        {% elif booking.payment_status == 'cancelled' %}bg-red-100 text-red-700
-        {% else %}bg-amber-100 text-amber-700{% endif %}">{{ booking.get_payment_status_display }}</div>
+
+  <div class="stack">
+    {% if request.user.may_change_status %}
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Record payment</h3></div>
+      <div class="admin-card-body">
+        <form method="post" action="{% url 'dashboard:booking_record_payment' booking.pk %}">{% csrf_token %}
+          {% with form=payment_form %}{% include "partials/form_fields.html" %}{% endwith %}
+          <button class="admin-btn admin-btn--success" style="margin-top:.5rem">{% icon 'commissions' 13 %} Record payment</button>
+        </form>
+      </div>
     </div>
-    <div><span class="text-gray-400">Total</span><div>{% if booking.total_amount %}${{ booking.total_amount|floatformat:2 }}{% else %}—{% endif %}</div></div>
-    <div><span class="text-gray-400">Paid</span><div>${{ booking.amount_paid|floatformat:2 }}</div></div>
-    <div><span class="text-gray-400">Balance</span><div>{% if booking.balance_due != None %}${{ booking.balance_due|floatformat:2 }}{% else %}—{% endif %}</div></div>
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Change status</h3></div>
+      <div class="admin-card-body">
+        <form method="post" action="{% url 'dashboard:booking_status' booking.pk %}" data-confirm="Change this booking's payment status? Cancelling claws back unpaid agent commission." data-confirm-safe="1" data-confirm-label="Update">{% csrf_token %}
+          {% with form=status_form %}{% include "partials/form_fields.html" %}{% endwith %}
+          <button class="admin-btn admin-btn--primary">Update status</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Guide, driver &amp; vehicle</h3></div>
+      <div class="admin-card-body">
+        {% for a in assignments %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:1px solid var(--gray-100);font-size:.8rem">
+          <span><strong>{{ a.staff.full_name|default:"—" }}</strong> {% if a.vehicle %}· {{ a.vehicle.name }}{% endif %}{% if a.notes %}<span class="muted"> — {{ a.notes }}</span>{% endif %}</span>
+          <form method="post" action="{% url 'dashboard:booking_unassign' booking.pk a.pk %}" class="inline-form">{% csrf_token %}<button class="admin-icon-btn admin-icon-btn--danger" title="Remove">{% icon 'close' 13 %}</button></form>
+        </div>
+        {% empty %}<p class="muted" style="margin-bottom:.6rem">Nobody assigned yet.</p>{% endfor %}
+        <form method="post" action="{% url 'dashboard:booking_assign' booking.pk %}" style="margin-top:.75rem">{% csrf_token %}
+          {% with form=assignment_form %}{% include "partials/form_fields.html" %}{% endwith %}
+          <button class="admin-btn admin-btn--outline">Assign</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <div class="admin-card-header"><h3>Reminders</h3><a href="{% url 'dashboard:reminder_list' %}" class="admin-btn admin-btn--outline" style="font-size:.65rem">All →</a></div>
+      <div class="admin-card-body">
+        {% for r in reminders %}<div style="font-size:.78rem;padding:.3rem 0;border-bottom:1px solid var(--gray-100)">{{ r.get_type_display }} · {{ r.send_at|date:"d M Y" }} {% status_badge r.status %}</div>
+        {% empty %}<p class="muted">No reminders scheduled.</p>{% endfor %}
+      </div>
+    </div>
+    {% if incidents %}
+    <div class="admin-card"><div class="admin-card-header"><h3>Incidents</h3></div><div class="admin-card-body">
+      {% for i in incidents %}<div style="font-size:.78rem;padding:.3rem 0">{{ i.get_incident_type_display }} {% status_badge i.severity %} {% status_badge i.status %}<div class="muted">{{ i.description|truncatechars:90 }}</div></div>{% endfor %}
+    </div></div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
